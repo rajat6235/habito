@@ -126,6 +126,12 @@ echo ""
 echo -e "${Y}Press Ctrl+C to stop both servers${NC}"
 echo ""
 
+# Kill any leftover processes on our ports
+for port in 4000 3000; do
+  lsof -ti tcp:"$port" 2>/dev/null | xargs kill -9 2>/dev/null || true
+done
+sleep 1
+
 trap 'kill $(jobs -p) 2>/dev/null; exit 0' INT TERM
 
 cd "$BACKEND" && npm run dev &
