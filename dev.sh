@@ -65,7 +65,7 @@ if [[ "${1:-}" == "reset" ]]; then
   psql -U "$(whoami)" postgres -c "DROP DATABASE IF EXISTS $DB_NAME;" 2>/dev/null || true
 fi
 
-psql -U "$(whoami)" postgres <<SQL 2>/dev/null || true
+psql -U "$(whoami)" postgres 2>/dev/null <<SQL || true
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '$DB_USER') THEN
@@ -73,9 +73,11 @@ BEGIN
   END IF;
 END
 \$\$;
-CREATE DATABASE $DB_NAME OWNER $DB_USER;
-GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;
 SQL
+if ! psql -U "$(whoami)" -lqt 2>/dev/null | cut -d\| -f1 | grep -qw "$DB_NAME"; then
+  psql -U "$(whoami)" postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || true
+  psql -U "$(whoami)" postgres -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;" 2>/dev/null || true
+fi
 info "Database '$DB_NAME' ready."
 
 # ── Mailpit (email viewer) ────────────────────────────────────────────────────
@@ -98,7 +100,7 @@ info "Running database migrations…"
 npx prisma migrate deploy
 
 info "Generating Prisma client…"
-npx prisma generate --silent
+npx prisma generate
 
 info "Seeding database…"
 npx tsx prisma/seed.ts
