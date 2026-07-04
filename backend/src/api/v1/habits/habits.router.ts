@@ -1,0 +1,52 @@
+import { Router } from 'express';
+import { ZodSchema } from 'zod';
+import { validate } from '../../../middleware/validate.middleware';
+import { authenticate } from '../../../middleware/auth.middleware';
+import {
+  createHabitSchema,
+  updateHabitSchema,
+  logHabitSchema,
+  listHabitsQuerySchema,
+  habitLogsQuerySchema,
+  createCategorySchema,
+  ListHabitsQuery,
+  HabitLogsQuery,
+} from './habits.validation';
+import {
+  listCategories,
+  createCategory,
+  listHabits,
+  createHabit,
+  getHabit,
+  updateHabit,
+  deleteHabit,
+  archiveHabit,
+  logHabit,
+  deleteLog,
+  getHabitLogs,
+  getTodayHabits,
+} from './habits.controller';
+
+export const habitsRouter = Router();
+
+// Coercing/transform schemas have Input ≠ Output; cast to satisfy validate's generic
+const listHabitsSchema  = listHabitsQuerySchema  as unknown as ZodSchema<ListHabitsQuery>;
+const habitLogsSchema   = habitLogsQuerySchema   as unknown as ZodSchema<HabitLogsQuery>;
+
+// ── Static routes FIRST — must precede /:id to avoid param capture ─────────
+habitsRouter.get('/today',       authenticate, getTodayHabits);
+habitsRouter.get('/categories',  authenticate, listCategories);
+habitsRouter.post('/categories', authenticate, validate(createCategorySchema), createCategory);
+
+// ── Collection ────────────────────────────────────────────────────────────────
+habitsRouter.get('/',  authenticate, validate(listHabitsSchema, 'query'), listHabits);
+habitsRouter.post('/', authenticate, validate(createHabitSchema),         createHabit);
+
+// ── Resource ──────────────────────────────────────────────────────────────────
+habitsRouter.get('/:id',              authenticate,                              getHabit);
+habitsRouter.patch('/:id',            authenticate, validate(updateHabitSchema), updateHabit);
+habitsRouter.delete('/:id',           authenticate,                              deleteHabit);
+habitsRouter.post('/:id/archive',     authenticate,                              archiveHabit);
+habitsRouter.post('/:id/log',         authenticate, validate(logHabitSchema),    logHabit);
+habitsRouter.delete('/:id/log/:date', authenticate,                              deleteLog);
+habitsRouter.get('/:id/logs',         authenticate, validate(habitLogsSchema, 'query'), getHabitLogs);
