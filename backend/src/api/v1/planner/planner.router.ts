@@ -28,7 +28,7 @@ plannerRouter.get(
 );
 
 // Task CRUD — static routes before dynamic /:id
-plannerRouter.post(
+plannerRouter.patch(
   '/tasks/reorder',
   authenticate,
   validate(reorderTasksSchema),

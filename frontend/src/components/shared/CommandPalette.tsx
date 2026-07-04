@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
 import {
   LayoutDashboard, CheckSquare, Shield, BookOpen, StickyNote,
-  Dumbbell, Target, Calendar, BarChart2, Heart, Trophy,
+  Dumbbell, Target, Calendar, BarChart2, Trophy,
   Settings, Plus, Search,
 } from 'lucide-react';
 import { useUiStore } from '@/stores/ui.store';
@@ -44,7 +44,6 @@ export function CommandPalette() {
     { id: 'goals',        group: 'Navigate', label: 'Goals',        icon: <Target />,          onSelect: () => nav('/app/goals') },
     { id: 'planner',      group: 'Navigate', label: 'Planner',      icon: <Calendar />,        onSelect: () => nav('/app/planner') },
     { id: 'analytics',    group: 'Navigate', label: 'Analytics',    icon: <BarChart2 />,       onSelect: () => nav('/app/analytics') },
-    { id: 'life-balance', group: 'Navigate', label: 'Life Balance', icon: <Heart />,           onSelect: () => nav('/app/life-balance') },
     { id: 'achievements', group: 'Navigate', label: 'Achievements', icon: <Trophy />,          onSelect: () => nav('/app/achievements') },
     { id: 'settings',     group: 'Navigate', label: 'Settings',     icon: <Settings />,        onSelect: () => nav('/app/settings') },
   ];

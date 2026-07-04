@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, CheckSquare, Shield, BookOpen, StickyNote,
-  Dumbbell, Target, Calendar, CalendarDays, BarChart2, Heart,
+  Dumbbell, Target, Calendar, CalendarDays, BarChart2,
   Trophy, Settings, ChevronLeft, ChevronRight, LogOut,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
@@ -38,7 +38,6 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: 'Recovery',     href: '/app/recovery',     icon: Shield },
       { label: 'Gym',          href: '/app/gym',          icon: Dumbbell },
-      { label: 'Life Balance', href: '/app/life-balance', icon: Heart },
     ],
   },
   {

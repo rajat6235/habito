@@ -8,7 +8,8 @@ import { StatCard } from '@/components/shared/StatCard';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 // ── Query keys ────────────────────────────────────────────────────────────────
 
@@ -75,11 +76,9 @@ export function AdminDashboard() {
           <h1 className="text-2xl font-bold tracking-tight">Admin Dashboard</h1>
           <p className="text-muted-foreground text-sm mt-1">Platform health and user overview</p>
         </div>
-        <Button asChild size="sm">
-          <Link href="/admin/users">
-            Manage Users <ArrowRight className="h-4 w-4" />
-          </Link>
-        </Button>
+        <Link href="/admin/users" className={cn(buttonVariants({ size: 'sm' }))}>
+          Manage Users <ArrowRight className="h-4 w-4" />
+        </Link>
       </div>
 
       {/* Stats grid */}
@@ -123,11 +122,9 @@ export function AdminDashboard() {
               Search, filter, disable, and impersonate users
             </p>
           </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/admin/users">
-              Open <ArrowRight className="h-3 w-3" />
-            </Link>
-          </Button>
+          <Link href="/admin/users" className={cn(buttonVariants({ variant: 'outline', size: 'sm' }))}>
+            Open <ArrowRight className="h-3 w-3" />
+          </Link>
         </Card>
       </div>
 

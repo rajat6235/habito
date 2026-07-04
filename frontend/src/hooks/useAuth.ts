@@ -31,7 +31,7 @@ export function useAuth() {
       toast({ title: 'Welcome back!', variant: 'success' });
     },
     onError: (error) => {
-      toast({ title: 'Login failed', description: String(error), variant: 'destructive' });
+      toast({ title: 'Login failed', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     },
   });
 
@@ -46,7 +46,7 @@ export function useAuth() {
       router.push('/login');
     },
     onError: (error) => {
-      toast({ title: 'Registration failed', description: String(error), variant: 'destructive' });
+      toast({ title: 'Registration failed', description: error instanceof Error ? error.message : String(error), variant: 'destructive' });
     },
   });
 

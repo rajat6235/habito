@@ -12,7 +12,8 @@ import { HabitCard } from '@/components/shared/HabitCard';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Button } from '@/components/ui/button';
+import { buttonVariants } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { Habit, HabitWithTodayLog } from '@shared/types/api.types';
 
 const QUOTES = [
@@ -152,12 +153,10 @@ export function DashboardView() {
               </p>
             )}
           </div>
-          <Button variant="ghost" size="sm" asChild className="shrink-0">
-            <Link href="/app/habits">
-              View all
-              <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </Button>
+          <Link href="/app/habits" className={cn(buttonVariants({ variant: 'ghost', size: 'sm' }), 'shrink-0')}>
+            View all
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
         </div>
 
         {/* Progress bar */}

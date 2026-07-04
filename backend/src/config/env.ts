@@ -16,7 +16,7 @@ const envSchema = z.object({
   JWT_REFRESH_REMEMBER_ME_EXPIRES_IN: z.string().default('30d'),
 
   COOKIE_SECRET: z.string().min(32),
-  COOKIE_SECURE: z.coerce.boolean().default(false),
+  COOKIE_SECURE: z.string().default('false').transform(v => v === 'true'),
   COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('lax'),
 
   SMTP_HOST: z.string().min(1),
@@ -46,7 +46,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'http', 'debug']).default('info'),
   LOG_FORMAT: z.enum(['json', 'pretty']).default('pretty'),
 
-  ADMIN_IMPERSONATION_ENABLED: z.coerce.boolean().default(true),
+  ADMIN_IMPERSONATION_ENABLED: z.string().default('true').transform(v => v !== 'false'),
   ADMIN_IMPERSONATION_SESSION_DURATION_MIN: z.coerce.number().int().default(60),
 });
 

@@ -2,6 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { env } from './config/env';
 import { prisma } from './config/database';
 import { requestIdMiddleware } from './middleware/requestId.middleware';
@@ -15,6 +16,12 @@ export function createApp(): express.Application {
 
   // ── Trust proxy (for correct IP behind load balancers / Nginx) ──
   app.set('trust proxy', 1);
+
+  // BigInt is not JSON-serializable by default; convert to Number for response payloads.
+  // XP values fit safely within Number.MAX_SAFE_INTEGER (9007199254740991).
+  app.set('json replacer', (_key: string, value: unknown) =>
+    typeof value === 'bigint' ? Number(value) : value,
+  );
 
   // ── Security headers ──────────────────────────────────────────────
   app.use(
@@ -53,6 +60,7 @@ export function createApp(): express.Application {
   // ── Body parsing ──────────────────────────────────────────────────
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  app.use(cookieParser(env.COOKIE_SECRET));
 
   // ── Request ID + per-request logger ──────────────────────────────
   app.use(requestIdMiddleware);

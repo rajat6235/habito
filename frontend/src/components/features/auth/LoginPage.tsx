@@ -54,7 +54,7 @@ export function LoginPage() {
     setFormError(null);
     login(values, {
       onSuccess: () => router.push(returnPath),
-      onError:   (err) => setFormError(String(err)),
+      onError:   (err) => setFormError(err instanceof Error ? err.message : String(err)),
     });
   }
 

@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
+import { PrismaClientKnownRequestError, PrismaClientValidationError } from '@prisma/client/runtime/library';
 import { AppError } from '../errors/AppError';
+import { ErrorCode } from '../errors/errorCodes';
 import { logger } from '../config/logger';
 import { env } from '../config/env';
 
@@ -26,6 +28,30 @@ export function errorHandler(
         message: err.message,
         ...(err.details !== undefined ? { details: err.details } : {}),
       },
+      requestId: req.requestId,
+    });
+    return;
+  }
+
+  // Prisma UUID validation error — bad param in URL (e.g. non-UUID passed as id)
+  if (
+    err instanceof PrismaClientKnownRequestError &&
+    err.message.includes('Error creating UUID')
+  ) {
+    res.status(400).json({
+      success: false,
+      error: { code: ErrorCode.VALIDATION_ERROR, message: 'Invalid ID format' },
+      requestId: req.requestId,
+    });
+    return;
+  }
+
+  // Prisma schema validation error
+  if (err instanceof PrismaClientValidationError) {
+    logger.warn('Prisma validation error', { requestId: req.requestId, path: req.path });
+    res.status(400).json({
+      success: false,
+      error: { code: ErrorCode.VALIDATION_ERROR, message: 'Invalid request data' },
       requestId: req.requestId,
     });
     return;
