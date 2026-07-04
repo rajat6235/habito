@@ -84,9 +84,8 @@ export class AuthService {
     ipAddress?: string;
   }): Promise<LoginResult> {
     const email = normaliseEmail(data.email);
-    const user = await this.userRepo.findByIdWithRoles(
-      (await this.userRepo.findByEmail(email))?.id ?? '',
-    );
+    const emailUser = await this.userRepo.findByEmail(email);
+    const user = emailUser ? await this.userRepo.findByIdWithRoles(emailUser.id) : null;
 
     if (!user) {
       // Constant-time to prevent email enumeration via timing
