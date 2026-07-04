@@ -1,4 +1,6 @@
-// Must be first — validates env vars before anything else loads
+// Load .env before any validation runs
+import 'dotenv/config';
+// Must be second — validates env vars before anything else loads
 import './config/env';
 
 import http from 'http';
