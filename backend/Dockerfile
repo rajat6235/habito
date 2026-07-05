@@ -1,14 +1,12 @@
 # ── Stage 1: Builder ─────────────────────────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
-# Install build dependencies for argon2 native module
-RUN apk add --no-cache python3 make g++
+RUN apt-get update && apt-get install -y python3 make g++ openssl && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 RUN npm ci --ignore-scripts
 
-# Install argon2 with native rebuild
 RUN npm rebuild argon2
 
 COPY tsconfig*.json ./
@@ -19,15 +17,14 @@ RUN npx prisma generate
 RUN npm run build
 
 # ── Stage 2: Production ───────────────────────────────────────────────────────
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN apk add --no-cache dumb-init
+RUN apt-get update && apt-get install -y dumb-init openssl && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S habito -u 1001
+RUN groupadd -g 1001 nodejs && useradd -u 1001 -g nodejs habito
 
 COPY package*.json ./
 RUN npm ci --omit=dev --ignore-scripts && npm rebuild argon2
