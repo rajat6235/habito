@@ -43,7 +43,7 @@ export class AuthService {
     firstName: string;
     lastName?: string;
     username: string;
-  }): Promise<{ userId: string; verificationToken: string }> {
+  }): Promise<{ userId: string }> {
     const email = normaliseEmail(data.email);
 
     const [existingEmail, existingUsername] = await Promise.all([
@@ -63,17 +63,16 @@ export class AuthService {
 
     const user = await this.userRepo.create({
       email,
-      username:     data.username,
+      username:      data.username,
       passwordHash,
-      firstName:    data.firstName,
-      lastName:     data.lastName ?? null,
-      roles:        { create: { roleId: userRole.id } },
-      settings:     { create: {} },
+      firstName:     data.firstName,
+      lastName:      data.lastName ?? null,
+      emailVerified: true,
+      roles:         { create: { roleId: userRole.id } },
+      settings:      { create: {} },
     });
 
-    const { token: verificationToken } = await this.sendVerificationEmail(user.id, email);
-
-    return { userId: user.id, verificationToken };
+    return { userId: user.id };
   }
 
   async login(data: {
@@ -106,9 +105,6 @@ export class AuthService {
       throw AppError.unauthorized('Incorrect email or password', ErrorCode.INVALID_CREDENTIALS);
     }
 
-    if (!user.emailVerified) {
-      throw AppError.forbidden('Please verify your email before logging in', ErrorCode.EMAIL_NOT_VERIFIED);
-    }
 
     const roles = user.roles.map(ur => ur.role.name);
     const sessionDuration = data.rememberMe
@@ -310,18 +306,4 @@ export class AuthService {
     };
   }
 
-  private async sendVerificationEmail(userId: string, _email: string): Promise<{ token: string }> {
-    const token = generateSecureToken();
-    const tokenHash = hashToken(token);
-
-    await prisma.emailVerificationToken.create({
-      data: {
-        userId,
-        tokenHash,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
-
-    return { token };
-  }
 }

@@ -32,14 +32,8 @@ export async function register(req: Request, res: Response, next: NextFunction):
       ...(body.lastName !== undefined ? { lastName: body.lastName } : {}),
     });
 
-    await container.emailService.sendVerification(
-      body.email,
-      result.verificationToken,
-      body.firstName,
-    );
-
     sendCreated(res, {
-      message: 'Account created. Please check your email to verify your account.',
+      message: 'Account created. You can now sign in.',
       userId: result.userId,
     });
   } catch (err) {

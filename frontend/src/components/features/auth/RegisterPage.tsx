@@ -124,28 +124,17 @@ export function RegisterPage() {
           <CheckCircle2 className="h-9 w-9 text-emerald-500" />
         </div>
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold">Check your inbox</h2>
+          <h2 className="text-2xl font-bold">Account created!</h2>
           <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-            We sent a verification link to your email. Click it to activate your account — the link expires in 24 hours.
+            You&apos;re all set. Sign in to start building better habits.
           </p>
-        </div>
-        <div className="rounded-xl border border-border bg-muted/40 p-4 text-left space-y-2 text-sm text-muted-foreground">
-          <p className="font-medium text-foreground text-xs uppercase tracking-wide">Next steps</p>
-          <ol className="space-y-1 list-decimal list-inside">
-            <li>Open the email from Habito</li>
-            <li>Click &quot;Verify my email&quot;</li>
-            <li>Sign in below</li>
-          </ol>
         </div>
         <Link
           href="/login"
           className="inline-block w-full px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity text-center"
         >
-          Go to sign in
+          Sign in
         </Link>
-        <p className="text-xs text-muted-foreground">
-          Didn&apos;t receive it? Check your spam folder.
-        </p>
       </motion.div>
     );
   }

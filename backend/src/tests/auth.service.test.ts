@@ -108,7 +108,7 @@ describe('AuthService.register()', () => {
     });
   });
 
-  it('returns userId and verificationToken on success', async () => {
+  it('returns userId on success', async () => {
     const userRepo = makeUserRepo({
       create: vi.fn().mockResolvedValue(makeUser({ id: 'new-user-id' })),
     });
@@ -117,9 +117,6 @@ describe('AuthService.register()', () => {
     const result = await svc.register(validPayload);
 
     expect(result).toHaveProperty('userId', 'new-user-id');
-    expect(result).toHaveProperty('verificationToken');
-    expect(typeof result.verificationToken).toBe('string');
-    expect(result.verificationToken.length).toBeGreaterThan(20);
   });
 
   it('normalises email to lowercase before duplicate check', async () => {
