@@ -3,6 +3,7 @@
 import { QueryProvider }          from './QueryProvider';
 import { ThemeProvider }          from './ThemeProvider';
 import { AuthProvider }           from './AuthProvider';
+import { PWAProvider }            from './PWAProvider';
 import { Toaster }                from '@/components/ui/toaster';
 import { CommandPalette }         from '@/components/shared/CommandPalette';
 import { OfflineBanner }          from '@/components/shared/OfflineBanner';
@@ -15,11 +16,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <ThemeProvider>
         <TooltipProvider delayDuration={400}>
           <AuthProvider>
-            <ImpersonationBanner />
-            <OfflineBanner />
-            {children}
-            <CommandPalette />
-            <Toaster />
+            <PWAProvider>
+              <ImpersonationBanner />
+              <OfflineBanner />
+              {children}
+              <CommandPalette />
+              <Toaster />
+            </PWAProvider>
           </AuthProvider>
         </TooltipProvider>
       </ThemeProvider>

@@ -35,14 +35,10 @@ export const metadata: Metadata = {
     title: 'Habito — Your Personal Operating System',
     description: 'Build habits, track recovery, log workouts, journal daily.',
   },
-  icons: {
-    icon: '/icons/icon.svg',
-    apple: '/icons/icon.svg',
-  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Habito',
   },
   formatDetection: { telephone: false },
@@ -68,9 +64,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${jetbrainsMono.variable}`}
     >
       <head>
-        <link rel="icon" href="/icons/favicon.ico" sizes="any" />
-        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        {/* iOS standalone splash — black-translucent status bar */}
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        {/* Prevent iOS phone number auto-detection */}
+        <meta name="format-detection" content="telephone=no" />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <Providers>{children}</Providers>

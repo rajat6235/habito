@@ -118,21 +118,34 @@ export function RegisterPage() {
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
-        className="text-center space-y-4 py-6"
+        className="text-center space-y-6 py-4"
       >
-        <CheckCircle2 className="h-14 w-14 text-emerald-500 mx-auto" />
-        <div>
-          <h2 className="text-2xl font-bold">Account created!</h2>
-          <p className="text-muted-foreground text-sm mt-2 max-w-xs mx-auto">
-            Check your inbox for a verification link. It expires in 24 hours.
+        <div className="flex items-center justify-center w-16 h-16 rounded-full bg-emerald-50 dark:bg-emerald-950 mx-auto">
+          <CheckCircle2 className="h-9 w-9 text-emerald-500" />
+        </div>
+        <div className="space-y-2">
+          <h2 className="text-2xl font-bold">Check your inbox</h2>
+          <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
+            We sent a verification link to your email. Click it to activate your account — the link expires in 24 hours.
           </p>
+        </div>
+        <div className="rounded-xl border border-border bg-muted/40 p-4 text-left space-y-2 text-sm text-muted-foreground">
+          <p className="font-medium text-foreground text-xs uppercase tracking-wide">Next steps</p>
+          <ol className="space-y-1 list-decimal list-inside">
+            <li>Open the email from Habito</li>
+            <li>Click &quot;Verify my email&quot;</li>
+            <li>Sign in below</li>
+          </ol>
         </div>
         <Link
           href="/login"
-          className="inline-block px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity"
+          className="inline-block w-full px-6 py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity text-center"
         >
-          Sign in
+          Go to sign in
         </Link>
+        <p className="text-xs text-muted-foreground">
+          Didn&apos;t receive it? Check your spam folder.
+        </p>
       </motion.div>
     );
   }

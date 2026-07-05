@@ -1,18 +1,42 @@
 {
   "name": "Habito — Personal Operating System",
   "short_name": "Habito",
-  "description": "Build habits, track recovery, log workouts, journal daily.",
+  "description": "Build better habits, track recovery, log workouts, journal daily, and achieve your goals.",
   "start_url": "/app",
+  "id": "/app",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
-  "background_color": "#0f0f0f",
+  "background_color": "#0c0e1a",
   "theme_color": "#6366f1",
   "orientation": "portrait-primary",
   "scope": "/",
   "lang": "en",
+  "dir": "ltr",
   "categories": ["health", "fitness", "lifestyle", "productivity"],
   "icons": [
-    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icons/icon.svg", "sizes": "any",     "type": "image/svg+xml", "purpose": "any" },
+    { "src": "/icons/icon.svg", "sizes": "any",     "type": "image/svg+xml", "purpose": "maskable" },
+    { "src": "/apple-icon",     "sizes": "180x180", "type": "image/png",     "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Today's Habits",
+      "short_name": "Habits",
+      "url": "/app/habits",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Daily Journal",
+      "short_name": "Journal",
+      "url": "/app/journal",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    },
+    {
+      "name": "Goals",
+      "short_name": "Goals",
+      "url": "/app/goals",
+      "icons": [{ "src": "/icons/icon.svg", "sizes": "any" }]
+    }
   ],
   "related_applications": [],
   "prefer_related_applications": false

@@ -5,7 +5,7 @@
 //   - Pages:                        Stale-While-Revalidate
 //   - Offline fallback:             /offline.html
 
-const CACHE_VERSION  = 'v1';
+const CACHE_VERSION  = 'v2';
 const STATIC_CACHE   = `habito-static-${CACHE_VERSION}`;
 const API_CACHE      = `habito-api-${CACHE_VERSION}`;
 const PAGE_CACHE     = `habito-pages-${CACHE_VERSION}`;
@@ -33,7 +33,6 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     Promise.all([
-      // Remove old caches
       caches.keys().then((keys) =>
         Promise.all(
           keys
@@ -42,8 +41,18 @@ self.addEventListener('activate', (event) => {
         ),
       ),
       self.clients.claim(),
-    ]),
+    ]).then(() => {
+      // Notify all clients that a new version is active
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        clients.forEach((client) => client.postMessage({ type: 'SW_ACTIVATED', version: CACHE_VERSION }));
+      });
+    }),
   );
+});
+
+// ── Message (skipWaiting from workbox-window) ─────────────────────────────────
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting();
 });
 
 // ── Fetch ─────────────────────────────────────────────────────────────────────

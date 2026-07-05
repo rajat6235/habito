@@ -19,11 +19,8 @@ const envSchema = z.object({
   COOKIE_SECURE: z.string().default('false').transform(v => v === 'true'),
   COOKIE_SAME_SITE: z.enum(['strict', 'lax', 'none']).default('lax'),
 
-  SMTP_HOST: z.string().default(''),
-  SMTP_PORT: z.coerce.number().int().default(587),
-  SMTP_USER: z.string().default(''),
-  SMTP_PASS: z.string().default(''),
-  EMAIL_FROM: z.string().default('noreply@habito.app'),
+  RESEND_API_KEY: z.string().default(''),
+  EMAIL_FROM: z.string().default('onboarding@resend.dev'),
   EMAIL_FROM_NAME: z.string().default('Habito'),
 
   STORAGE_PROVIDER: z.enum(['local', 's3', 'r2']).default('local'),
