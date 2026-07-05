@@ -35,6 +35,10 @@ export const metadata: Metadata = {
     title: 'Habito — Your Personal Operating System',
     description: 'Build habits, track recovery, log workouts, journal daily.',
   },
+  icons: {
+    icon: '/icons/icon.svg',
+    apple: '/icons/icon.svg',
+  },
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
