@@ -321,7 +321,13 @@ export async function deleteUser(req: Request, res: Response, next: NextFunction
 
     await prisma.user.update({
       where: { id },
-      data:  { deletedAt: new Date(), status: 'deleted' },
+      data:  {
+        deletedAt: new Date(),
+        status:    'deleted',
+        // Anonymise email and username so they can be re-used on a new account
+        email:    `deleted_${id}@deleted.invalid`,
+        username: `deleted_${id}`,
+      },
     });
 
     sendSuccess(res, { message: 'User deleted' });
