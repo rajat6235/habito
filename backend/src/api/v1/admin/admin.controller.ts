@@ -127,9 +127,8 @@ export async function getUserOverview(req: Request, res: Response, next: NextFun
         journalCount,
         goalCount,
         taskCount,
-        totalXp:       Number(user.userLevel?.totalXp ?? 0),
-        level:         user.userLevel?.level ?? 1,
-        longestStreak: user.userLevel?.longestStreak ?? 0,
+        totalXp: Number(user.userLevel?.totalXp ?? 0),
+        level:   user.userLevel?.level ?? 1,
       },
       recentActivity,
     });
