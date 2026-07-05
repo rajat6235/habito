@@ -1,4 +1,4 @@
-import { apiClient, apiGet, apiPost, apiPatch } from './client';
+import { apiClient, apiGet, apiPost, apiPatch, apiDelete } from './client';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -207,6 +207,10 @@ export const adminApi = {
 
   enableUser(id: string): Promise<AdminUser> {
     return apiPatch<AdminUser>(`/admin/users/${id}`, { status: 'active' });
+  },
+
+  deleteUser(id: string): Promise<{ message: string }> {
+    return apiDelete<{ message: string }>(`/admin/users/${id}`);
   },
 
   impersonateUser(

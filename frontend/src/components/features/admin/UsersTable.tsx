@@ -4,17 +4,11 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, ChevronLeft, ChevronRight,
-  Shield, UserX, UserCheck, Loader2, Eye,
+  UserX, UserCheck, Loader2, Eye, Trash2,
 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
-import {
-  adminApi,
-  type AdminUser,
-  type ImpersonateReasonCategory,
-} from '@/lib/api/admin.api';
-import { setAccessToken } from '@/lib/api/client';
+import { adminApi, type AdminUser } from '@/lib/api/admin.api';
 import Link from 'next/link';
-import { useAuthStore } from '@/stores/auth.store';
 import { useToast } from '@/stores/ui.store';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
@@ -34,7 +28,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -49,13 +42,6 @@ const STATUS_OPTIONS = [
   { value: 'disabled', label: 'Disabled' },
   { value: 'deleted',  label: 'Deleted' },
 ] as const;
-
-const REASON_CATEGORY_OPTIONS: { value: ImpersonateReasonCategory; label: string }[] = [
-  { value: 'bug_investigation',  label: 'Bug Investigation' },
-  { value: 'user_support',       label: 'User Support' },
-  { value: 'data_verification',  label: 'Data Verification' },
-  { value: 'other',              label: 'Other' },
-];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,6 +63,10 @@ function roleNames(user: AdminUser): string {
   return user.roles.map((r) => r.role.name).join(', ') || 'user';
 }
 
+function isSuperAdmin(user: AdminUser): boolean {
+  return user.roles.some((r) => r.role.name === 'super_admin');
+}
+
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 const SKELETON_WIDTHS = [40, 120, 160, 64, 80, 96, 80] as const;
@@ -93,118 +83,34 @@ function UserRowSkeleton() {
   );
 }
 
-// ── Impersonate Dialog ────────────────────────────────────────────────────────
+// ── Delete Confirm Dialog ─────────────────────────────────────────────────────
 
-interface ImpersonateDialogProps {
-  target:   AdminUser | null;
-  open:     boolean;
-  onClose:  () => void;
+interface DeleteDialogProps {
+  target:  AdminUser | null;
+  open:    boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+  isPending: boolean;
 }
 
-function ImpersonateDialog({ target, open, onClose }: ImpersonateDialogProps) {
-  const [reason, setReason]         = useState('');
-  const [category, setCategory]     = useState<ImpersonateReasonCategory>('user_support');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError]           = useState<string | null>(null);
-
-  const { toast }    = useToast();
-  const { user: me, setImpersonation } = useAuthStore();
-
-  async function handleConfirm() {
-    if (!target) return;
-    if (reason.trim().length < 10) {
-      setError('Reason must be at least 10 characters.');
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await adminApi.impersonateUser(target.id, reason.trim(), category);
-      // Switch token to the impersonated user's token
-      setAccessToken(result.accessToken);
-      // Mark impersonation in auth store (store the admin's ID for the banner)
-      setImpersonation(me?.id ?? null);
-      // Set a temporary session cookie so middleware allows access
-      document.cookie = 'habito_session=1; path=/; SameSite=Strict';
-      toast({ title: `Impersonating ${target.firstName}`, variant: 'default' });
-      onClose();
-      // Navigate to user dashboard
-      window.location.href = '/dashboard';
-    } catch {
-      setError('Impersonation failed. Check that impersonation is enabled.');
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  function handleOpenChange(open: boolean) {
-    if (!open) {
-      onClose();
-      setReason('');
-      setError(null);
-    }
-  }
-
+function DeleteDialog({ target, open, onClose, onConfirm, isPending }: DeleteDialogProps) {
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Impersonate {target?.firstName} {target?.lastName}</DialogTitle>
+          <DialogTitle>Delete {target?.firstName} {target?.lastName}?</DialogTitle>
           <DialogDescription>
-            You will be granted temporary access as this user. All actions will be
-            attributed to this user and logged for audit purposes.
+            This will soft-delete the account. The user will no longer be able to log in.
+            Their data is retained and the action is reversible by an engineer.
           </DialogDescription>
         </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {error && (
-            <p className="text-destructive text-sm bg-destructive/10 p-3 rounded-lg">{error}</p>
-          )}
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Reason category</label>
-            <Select
-              value={category}
-              onValueChange={(v) => setCategory(v as ImpersonateReasonCategory)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {REASON_CATEGORY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">
-              Reason <span className="text-muted-foreground font-normal">(min 10 chars)</span>
-            </label>
-            <Textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Describe why you need to impersonate this user…"
-              rows={3}
-            />
-          </div>
-        </div>
-
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={submitting}>
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
             Cancel
           </Button>
-          <Button
-            variant="warning"
-            onClick={handleConfirm}
-            disabled={submitting || reason.trim().length < 10}
-            loading={submitting}
-          >
-            <Shield className="h-4 w-4" />
-            Start Impersonation
+          <Button variant="destructive" onClick={onConfirm} loading={isPending}>
+            <Trash2 className="h-4 w-4" />
+            Delete user
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -215,18 +121,18 @@ function ImpersonateDialog({ target, open, onClose }: ImpersonateDialogProps) {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function UsersTable() {
-  const [search, setSearch]     = useState('');
-  const [status, setStatus]     = useState<string>('all');
-  const [page, setPage]         = useState(1);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<string>('all');
+  const [page, setPage]     = useState(1);
 
   const debouncedSearch = useDebounce(search, 400);
 
-  const [impersonateTarget, setImpersonateTarget] = useState<AdminUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
 
-  const { toast }  = useToast();
-  const qc         = useQueryClient();
+  const { toast } = useToast();
+  const qc        = useQueryClient();
 
-  // ── Query ────────────────────────────────────────────────────────────────
+  // ── Query ──────────────────────────────────────────────────────────────────
 
   const queryKey = ['admin', 'users', { search: debouncedSearch, status, page }] as const;
 
@@ -242,34 +148,31 @@ export function UsersTable() {
     staleTime: 30_000,
   });
 
-  // Reset page when filters change
-  function applySearch(value: string) {
-    setSearch(value);
-    setPage(1);
-  }
-  function applyStatus(value: string) {
-    setStatus(value);
-    setPage(1);
-  }
+  function applySearch(value: string) { setSearch(value); setPage(1); }
+  function applyStatus(value: string) { setStatus(value); setPage(1); }
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
+  // ── Mutations ──────────────────────────────────────────────────────────────
 
   const disableMutation = useMutation({
     mutationFn: (id: string) => adminApi.disableUser(id),
-    onSuccess:  () => {
-      qc.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast({ title: 'User disabled', variant: 'default' });
-    },
-    onError: () => toast({ title: 'Failed to disable user', variant: 'destructive' }),
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast({ title: 'User disabled', variant: 'default' }); },
+    onError:    () => toast({ title: 'Failed to disable user', variant: 'destructive' }),
   });
 
   const enableMutation = useMutation({
     mutationFn: (id: string) => adminApi.enableUser(id),
+    onSuccess:  () => { qc.invalidateQueries({ queryKey: ['admin', 'users'] }); toast({ title: 'User enabled', variant: 'success' }); },
+    onError:    () => toast({ title: 'Failed to enable user', variant: 'destructive' }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.deleteUser(id),
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['admin', 'users'] });
-      toast({ title: 'User enabled', variant: 'success' });
+      toast({ title: 'User deleted', variant: 'default' });
+      setDeleteTarget(null);
     },
-    onError: () => toast({ title: 'Failed to enable user', variant: 'destructive' }),
+    onError: () => toast({ title: 'Failed to delete user', variant: 'destructive' }),
   });
 
   // ── Pagination ─────────────────────────────────────────────────────────────
@@ -335,16 +238,19 @@ export function UsersTable() {
                 {isLoading
                   ? Array.from({ length: 8 }).map((_, i) => <UserRowSkeleton key={i} />)
                   : (data?.data ?? []).map((user) => {
-                      const isMutating =
+                      const isMutatingToggle =
                         (disableMutation.isPending && disableMutation.variables === user.id) ||
                         (enableMutation.isPending  && enableMutation.variables  === user.id);
+                      const isDeletingThis =
+                        deleteMutation.isPending && deleteMutation.variables === user.id;
+                      const canDelete = !isSuperAdmin(user) && user.status !== 'deleted';
 
                       return (
                         <tr
                           key={user.id}
                           className={cn(
                             'border-b border-border last:border-0 hover:bg-muted/30 transition-colors',
-                            isMutating && 'opacity-60 pointer-events-none',
+                            (isMutatingToggle || isDeletingThis) && 'opacity-60 pointer-events-none',
                           )}
                         >
                           {/* Avatar */}
@@ -357,15 +263,11 @@ export function UsersTable() {
                           {/* Name */}
                           <td className="py-3 px-4 font-medium whitespace-nowrap">
                             {user.firstName} {user.lastName ?? ''}
-                            <div className="text-xs text-muted-foreground font-normal">
-                              @{user.username}
-                            </div>
+                            <div className="text-xs text-muted-foreground font-normal">@{user.username}</div>
                           </td>
 
                           {/* Email */}
-                          <td className="py-3 px-4 text-muted-foreground">
-                            {user.email}
-                          </td>
+                          <td className="py-3 px-4 text-muted-foreground">{user.email}</td>
 
                           {/* Status */}
                           <td className="py-3 px-4">
@@ -403,11 +305,11 @@ export function UsersTable() {
                                   size="icon-sm"
                                   title="Disable user"
                                   onClick={() => disableMutation.mutate(user.id)}
-                                  disabled={isMutating}
+                                  disabled={isMutatingToggle}
                                 >
-                                  {isMutating && disableMutation.variables === user.id
+                                  {isMutatingToggle && disableMutation.variables === user.id
                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                    : <UserX className="h-3.5 w-3.5 text-destructive" />
+                                    : <UserX className="h-3.5 w-3.5 text-amber-500" />
                                   }
                                 </Button>
                               ) : user.status === 'disabled' ? (
@@ -416,24 +318,28 @@ export function UsersTable() {
                                   size="icon-sm"
                                   title="Enable user"
                                   onClick={() => enableMutation.mutate(user.id)}
-                                  disabled={isMutating}
+                                  disabled={isMutatingToggle}
                                 >
-                                  {isMutating && enableMutation.variables === user.id
+                                  {isMutatingToggle && enableMutation.variables === user.id
                                     ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                     : <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
                                   }
                                 </Button>
                               ) : null}
 
-                              {/* Impersonate */}
-                              {user.status !== 'deleted' && (
+                              {/* Delete */}
+                              {canDelete && (
                                 <Button
                                   variant="ghost"
                                   size="icon-sm"
-                                  title="Impersonate user"
-                                  onClick={() => setImpersonateTarget(user)}
+                                  title="Delete user"
+                                  onClick={() => setDeleteTarget(user)}
+                                  disabled={isDeletingThis}
                                 >
-                                  <Shield className="h-3.5 w-3.5 text-amber-600" />
+                                  {isDeletingThis
+                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    : <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                                  }
                                 </Button>
                               )}
                             </div>
@@ -483,11 +389,13 @@ export function UsersTable() {
         )}
       </Card>
 
-      {/* Impersonate Dialog */}
-      <ImpersonateDialog
-        target={impersonateTarget}
-        open={impersonateTarget !== null}
-        onClose={() => setImpersonateTarget(null)}
+      {/* Delete Confirm Dialog */}
+      <DeleteDialog
+        target={deleteTarget}
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
+        isPending={deleteMutation.isPending}
       />
     </div>
   );
