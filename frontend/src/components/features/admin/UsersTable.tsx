@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, ChevronLeft, ChevronRight,
-  Shield, UserX, UserCheck, Loader2,
+  Shield, UserX, UserCheck, Loader2, Eye,
 } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import {
@@ -13,10 +13,11 @@ import {
   type ImpersonateReasonCategory,
 } from '@/lib/api/admin.api';
 import { setAccessToken } from '@/lib/api/client';
+import Link from 'next/link';
 import { useAuthStore } from '@/stores/auth.store';
 import { useToast } from '@/stores/ui.store';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -386,6 +387,15 @@ export function UsersTable() {
                           {/* Actions */}
                           <td className="py-3 px-4">
                             <div className="flex items-center justify-end gap-1.5">
+                              {/* View detail */}
+                              <Link
+                                href={`/admin/users/${user.id}`}
+                                title="View user"
+                                className={cn(buttonVariants({ variant: 'ghost', size: 'icon-sm' }))}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </Link>
+
                               {/* Disable / Enable toggle */}
                               {user.status === 'active' ? (
                                 <Button

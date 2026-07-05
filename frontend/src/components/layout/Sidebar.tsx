@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, CheckSquare, Shield, BookOpen, StickyNote,
   Dumbbell, Target, Calendar, CalendarDays, BarChart2,
-  Trophy, Settings, ChevronLeft, ChevronRight, LogOut,
+  Trophy, Settings, ChevronLeft, ChevronRight, LogOut, ShieldCheck,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { useUiStore } from '@/stores/ui.store';
@@ -59,6 +59,7 @@ const NAV_GROUPS: NavGroup[] = [
 ];
 
 const SETTINGS_ITEM: NavItem = { label: 'Settings', href: '/app/settings', icon: Settings };
+const ADMIN_ITEM:    NavItem = { label: 'Admin',    href: '/admin',        icon: ShieldCheck };
 
 function SidebarLink({
   item,
@@ -222,6 +223,13 @@ export function Sidebar() {
 
       {/* Bottom */}
       <div className="px-2 pb-3 space-y-0.5 border-t border-border pt-3 shrink-0">
+        {user?.roles?.some(r => r === 'admin' || r === 'super_admin') && (
+          <SidebarLink
+            item={ADMIN_ITEM}
+            collapsed={collapsed}
+            active={isActive(ADMIN_ITEM.href)}
+          />
+        )}
         <SidebarLink
           item={SETTINGS_ITEM}
           collapsed={collapsed}

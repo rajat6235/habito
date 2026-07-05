@@ -85,6 +85,177 @@ export async function getUser(req: Request, res: Response, next: NextFunction): 
   }
 }
 
+export async function getUserOverview(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+
+    const user = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        roles:     { include: { role: true } },
+        userLevel: true,
+      },
+    });
+
+    if (!user) throw AppError.notFound('User', ErrorCode.USER_NOT_FOUND);
+
+    const [
+      habitCount,
+      activeHabitCount,
+      journalCount,
+      goalCount,
+      taskCount,
+      recentActivity,
+    ] = await Promise.all([
+      prisma.habit.count({ where: { userId: id, deletedAt: null } }),
+      prisma.habit.count({ where: { userId: id, deletedAt: null, isArchived: false } }),
+      prisma.journalEntry.count({ where: { userId: id } }),
+      prisma.goal.count({ where: { userId: id, deletedAt: null } }),
+      prisma.plannerTask.count({ where: { userId: id } }),
+      prisma.auditLog.findMany({
+        where: { actorId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    sendSuccess(res, {
+      user,
+      stats: {
+        habitCount,
+        activeHabitCount,
+        journalCount,
+        goalCount,
+        taskCount,
+        totalXp:       Number(user.userLevel?.totalXp ?? 0),
+        level:         user.userLevel?.level ?? 1,
+        longestStreak: user.userLevel?.longestStreak ?? 0,
+      },
+      recentActivity,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUserHabits(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+    const page  = Math.max(1, parseInt(String(req.query['page']  ?? '1'), 10));
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query['limit'] ?? '20'), 10)));
+
+    const [habits, total] = await Promise.all([
+      prisma.habit.findMany({
+        where: { userId: id, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true, title: true, icon: true, color: true,
+          frequencyType: true, priority: true, isArchived: true,
+          currentStreak: true, longestStreak: true, totalCompletions: true,
+          successRate: true, createdAt: true,
+        },
+      }),
+      prisma.habit.count({ where: { userId: id, deletedAt: null } }),
+    ]);
+
+    sendSuccess(res, habits, 200, {
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUserJournals(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+    const page  = Math.max(1, parseInt(String(req.query['page']  ?? '1'), 10));
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query['limit'] ?? '20'), 10)));
+
+    const [entries, total] = await Promise.all([
+      prisma.journalEntry.findMany({
+        where: { userId: id, deletedAt: null },
+        orderBy: { entryDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true, entryDate: true, entryType: true,
+          moodMorning: true, moodEvening: true, dayRating: true,
+          contentPlain: true, tags: true, isDraft: true, createdAt: true,
+        },
+      }),
+      prisma.journalEntry.count({ where: { userId: id, deletedAt: null } }),
+    ]);
+
+    sendSuccess(res, entries, 200, {
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUserGoals(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+    const page  = Math.max(1, parseInt(String(req.query['page']  ?? '1'), 10));
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query['limit'] ?? '20'), 10)));
+
+    const [goals, total] = await Promise.all([
+      prisma.goal.findMany({
+        where: { userId: id, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true, title: true, category: true, goalType: true,
+          progressType: true, currentValue: true, targetValue: true,
+          progressPct: true, status: true, priority: true,
+          targetDate: true, completedAt: true, createdAt: true,
+        },
+      }),
+      prisma.goal.count({ where: { userId: id, deletedAt: null } }),
+    ]);
+
+    sendSuccess(res, goals, 200, {
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getUserTasks(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+    const page  = Math.max(1, parseInt(String(req.query['page']  ?? '1'), 10));
+    const limit = Math.min(50, Math.max(1, parseInt(String(req.query['limit'] ?? '20'), 10)));
+
+    const [tasks, total] = await Promise.all([
+      prisma.plannerTask.findMany({
+        where: { userId: id },
+        orderBy: { planDate: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        select: {
+          id: true, title: true, planDate: true, timeBlock: true,
+          priority: true, isCompleted: true, completedAt: true,
+          estimatedMin: true, notes: true, createdAt: true,
+        },
+      }),
+      prisma.plannerTask.count({ where: { userId: id } }),
+    ]);
+
+    sendSuccess(res, tasks, 200, {
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function updateUser(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params as { id: string };

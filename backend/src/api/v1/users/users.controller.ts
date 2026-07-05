@@ -10,7 +10,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
   try {
     const user = await prisma.user.findFirst({
       where: { id: req.user!.id, deletedAt: null },
-      include: { userLevel: true },
+      include: { userLevel: true, roles: { include: { role: true } } },
     });
 
     if (!user) throw AppError.notFound('User not found');
@@ -29,6 +29,7 @@ export async function getMe(req: Request, res: Response, next: NextFunction): Pr
       level:     user.userLevel?.level ?? 1,
       totalXp:   Number(user.userLevel?.totalXp ?? 0),
       createdAt: user.createdAt.toISOString(),
+      roles:     user.roles.map((r) => r.role.name),
     });
   } catch (err) {
     next(err);

@@ -41,3 +41,4 @@ export function parseOffsetParams(query: Record<string, unknown>) {
   );
   return { page, limit, skip: (page - 1) * limit };
 }
+

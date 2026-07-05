@@ -26,7 +26,7 @@ function AuditLogRow({ log }: { log: AuditLog }) {
   return (
     <tr className="border-b border-border last:border-0">
       <td className="py-3 px-4 text-sm font-mono text-muted-foreground truncate max-w-[8rem]">
-        {log.actorId.slice(0, 8)}…
+        {log.actorId ? log.actorId.slice(0, 8) + '…' : 'system'}
       </td>
       <td className="py-3 px-4">
         <Badge variant="secondary" className="text-xs capitalize">{entity}</Badge>

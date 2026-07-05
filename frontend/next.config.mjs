@@ -32,7 +32,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self'",
-              "connect-src 'self' http://localhost:4000 https://api.habito.app",
+              "connect-src 'self' https:",
               "worker-src 'self' blob:",
               "manifest-src 'self'",
             ].join('; '),
@@ -50,10 +50,11 @@ const nextConfig = {
   },
 
   async rewrites() {
+    const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4000';
     return [
       {
         source: '/api/:path*',
-        destination: 'http://localhost:4000/api/:path*',
+        destination: `${backendUrl}/api/:path*`,
       },
     ];
   },

@@ -72,6 +72,7 @@ export interface UserProfile {
   level:     number;
   totalXp:   number;
   createdAt: string;
+  roles:     string[];
 }
 
 export interface UserSession {

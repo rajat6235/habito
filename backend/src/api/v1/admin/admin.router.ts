@@ -14,6 +14,11 @@ import {
 import {
   listUsers,
   getUser,
+  getUserOverview,
+  getUserHabits,
+  getUserJournals,
+  getUserGoals,
+  getUserTasks,
   updateUser,
   deleteUser,
   impersonateUser,
@@ -39,11 +44,12 @@ adminRouter.get(
   listUsers,
 );
 
-adminRouter.get(
-  '/users/:id',
-  ...adminAuth,
-  getUser,
-);
+adminRouter.get('/users/:id/overview',  ...adminAuth, getUserOverview);
+adminRouter.get('/users/:id/habits',    ...adminAuth, getUserHabits);
+adminRouter.get('/users/:id/journals',  ...adminAuth, getUserJournals);
+adminRouter.get('/users/:id/goals',     ...adminAuth, getUserGoals);
+adminRouter.get('/users/:id/tasks',     ...adminAuth, getUserTasks);
+adminRouter.get('/users/:id',           ...adminAuth, getUser);
 
 adminRouter.patch(
   '/users/:id',
