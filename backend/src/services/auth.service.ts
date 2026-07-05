@@ -47,8 +47,8 @@ export class AuthService {
     const email = normaliseEmail(data.email);
 
     const [existingEmail, existingUsername] = await Promise.all([
-      this.userRepo.findByEmail(email),
-      this.userRepo.findByUsername(data.username),
+      this.userRepo.findByEmailAny(email),
+      this.userRepo.findByUsernameAny(data.username),
     ]);
 
     if (existingEmail) {

@@ -33,17 +33,27 @@ export function errorHandler(
     return;
   }
 
-  // Prisma UUID validation error — bad param in URL (e.g. non-UUID passed as id)
-  if (
-    err instanceof PrismaClientKnownRequestError &&
-    err.message.includes('Error creating UUID')
-  ) {
-    res.status(400).json({
-      success: false,
-      error: { code: ErrorCode.VALIDATION_ERROR, message: 'Invalid ID format' },
-      requestId: req.requestId,
-    });
-    return;
+  if (err instanceof PrismaClientKnownRequestError) {
+    // Unique constraint violation
+    if (err.code === 'P2002') {
+      const fields = (err.meta?.['target'] as string[] | undefined)?.join(', ') ?? 'field';
+      res.status(409).json({
+        success: false,
+        error: { code: ErrorCode.CONFLICT, message: `A record with this ${fields} already exists` },
+        requestId: req.requestId,
+      });
+      return;
+    }
+
+    // Bad UUID in URL param
+    if (err.message.includes('Error creating UUID')) {
+      res.status(400).json({
+        success: false,
+        error: { code: ErrorCode.VALIDATION_ERROR, message: 'Invalid ID format' },
+        requestId: req.requestId,
+      });
+      return;
+    }
   }
 
   // Prisma schema validation error

@@ -27,9 +27,21 @@ export class UserRepository extends BaseRepository {
     });
   }
 
+  async findByEmailAny(email: string): Promise<User | null> {
+    return this.db.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
+  }
+
   async findByUsername(username: string): Promise<User | null> {
     return this.db.user.findFirst({
       where: { username: { equals: username, mode: 'insensitive' }, deletedAt: null },
+    });
+  }
+
+  async findByUsernameAny(username: string): Promise<User | null> {
+    return this.db.user.findFirst({
+      where: { username: { equals: username, mode: 'insensitive' } },
     });
   }
 

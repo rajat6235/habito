@@ -1,49 +1,40 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { authApi } from '@/lib/api/auth.api';
 import { useAuthStore } from '@/stores/auth.store';
-import { queryKeys } from '@/lib/queryClient';
-import { ApiRequestError } from '@/lib/api/client';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setUser, setLoading, clearAuth } = useAuthStore();
-
-  // On mount, try to restore session via the refresh cookie
-  const { data, error, isLoading } = useQuery({
-    queryKey: queryKeys.auth.me(),
-    queryFn:  authApi.getMe,
-    retry:    false,
-    // Don't fetch if we know there's no session cookie
-    enabled:  typeof document !== 'undefined' && document.cookie.includes('habito_session=1'),
-    staleTime: 5 * 60_000,
-  });
+  const { setUser, clearAuth, setLoading, isLoading } = useAuthStore();
+  const initialized = useRef(false);
 
   useEffect(() => {
-    if (isLoading) {
-      setLoading(true);
+    if (initialized.current) return;
+    initialized.current = true;
+
+    // No session cookie → not logged in, render immediately
+    if (!document.cookie.includes('habito_session=1')) {
+      setLoading(false);
       return;
     }
 
-    if (data) {
-      setUser(data);
-      return;
-    }
+    // Refresh token → then fetch user profile sequentially
+    authApi
+      .refresh()
+      .then(() => authApi.getMe())
+      .then((profile) => setUser(profile))
+      .catch(() => clearAuth())
+      .finally(() => setLoading(false));
+  }, [setUser, clearAuth, setLoading]);
 
-    if (error) {
-      const isAuthError =
-        error instanceof ApiRequestError &&
-        (error.status === 401 || error.code === 'TOKEN_EXPIRED');
-
-      if (isAuthError) {
-        // Try to refresh silently before giving up
-        authApi.refresh().catch(() => clearAuth());
-      } else {
-        setLoading(false);
-      }
-    }
-  }, [data, error, isLoading, setUser, setLoading, clearAuth]);
+  // Block all children until we know the auth state
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return <>{children}</>;
 }
