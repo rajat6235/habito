@@ -208,7 +208,7 @@ describe('AuthService.login()', () => {
     });
   });
 
-  it('throws EMAIL_NOT_VERIFIED when email not verified', async () => {
+  it('allows login regardless of emailVerified flag (verification disabled)', async () => {
     const user = makeUser({ passwordHash: realHash, emailVerified: false });
     const userRepo = makeUserRepo({
       findByEmail:       vi.fn().mockResolvedValue(user),
@@ -216,9 +216,9 @@ describe('AuthService.login()', () => {
     });
     const svc = new AuthService(userRepo as never, makeSessionRepo() as never);
 
-    await expect(svc.login(loginPayload)).rejects.toMatchObject({
-      code: ErrorCode.EMAIL_NOT_VERIFIED,
-      statusCode: 403,
+    // Should succeed — email verification is disabled in the current build
+    await expect(svc.login(loginPayload)).resolves.toMatchObject({
+      accessToken: expect.any(String),
     });
   });
 

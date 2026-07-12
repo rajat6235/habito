@@ -244,8 +244,8 @@ describe('habitLogsQuerySchema', () => {
     expect(r.success && r.data.limit).toBe(30);
   });
 
-  it('rejects a missing from date', () => {
-    expect(habitLogsQuerySchema.safeParse({ to: '2026-07-03' }).success).toBe(false);
+  it('accepts a query without from/to dates (defaults to 3-month window)', () => {
+    expect(habitLogsQuerySchema.safeParse({}).success).toBe(true);
   });
 });
 
@@ -718,9 +718,10 @@ describe('changePasswordSchema', () => {
   const valid = {
     currentPassword: 'OldPassword1',
     newPassword:     'NewPass1!Safe',
+    confirmPassword: 'NewPass1!Safe',
   };
 
-  it('accepts valid current and new password', () => {
+  it('accepts valid current and new password with matching confirm', () => {
     expect(changePasswordSchema.safeParse(valid).success).toBe(true);
   });
 
@@ -729,24 +730,29 @@ describe('changePasswordSchema', () => {
     expect(changePasswordSchema.safeParse(rest).success).toBe(false);
   });
 
+  it('rejects mismatched confirmPassword', () => {
+    expect(changePasswordSchema.safeParse({ ...valid, confirmPassword: 'Different1!' }).success).toBe(false);
+  });
+
   it('rejects a new password shorter than 8 chars', () => {
-    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'Ab1' }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'Ab1!', confirmPassword: 'Ab1!' }).success).toBe(false);
   });
 
   it('rejects a new password without an uppercase letter', () => {
-    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'password1!' }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'password1!', confirmPassword: 'password1!' }).success).toBe(false);
   });
 
   it('rejects a new password without a lowercase letter', () => {
-    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'PASSWORD1!' }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'PASSWORD1!', confirmPassword: 'PASSWORD1!' }).success).toBe(false);
   });
 
   it('rejects a new password without a number', () => {
-    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'PasswordOnly!' }).success).toBe(false);
+    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'PasswordOnly!', confirmPassword: 'PasswordOnly!' }).success).toBe(false);
   });
 
   it('rejects a new password exceeding 128 chars', () => {
-    expect(changePasswordSchema.safeParse({ ...valid, newPassword: 'Aa1' + 'x'.repeat(126) }).success).toBe(false);
+    const long = 'Aa1' + 'x'.repeat(126);
+    expect(changePasswordSchema.safeParse({ ...valid, newPassword: long, confirmPassword: long }).success).toBe(false);
   });
 });
 

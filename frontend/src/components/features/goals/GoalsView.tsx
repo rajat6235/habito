@@ -480,75 +480,87 @@ export function GoalsView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
-        <div className="flex items-center gap-2">
-          <Target className="h-5 w-5 text-primary" />
-          <h1 className="text-lg font-semibold">Goals</h1>
-          {goals.length > 0 && (
-            <Badge variant="secondary" className="text-xs">
-              {goals.length}
-            </Badge>
-          )}
+      <div className="px-4 pt-5 pb-4 border-b border-border shrink-0">
+        <div className="max-w-2xl mx-auto flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+              Goals
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight">Your ambitions</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {goals.length > 0
+                ? `${goals.filter((g) => g.status === 'in_progress').length} active · ${goals.filter((g) => g.status === 'completed').length} completed`
+                : 'Set a goal and break it into milestones.'}
+            </p>
+          </div>
+          <Button
+            size="sm"
+            leftIcon={<Plus className="h-4 w-4" />}
+            onClick={() => setSheetOpen(true)}
+            className="shrink-0"
+          >
+            New Goal
+          </Button>
         </div>
-        <Button
-          size="sm"
-          leftIcon={<Plus className="h-4 w-4" />}
-          onClick={() => setSheetOpen(true)}
-        >
-          New Goal
-        </Button>
       </div>
 
       {/* Status filter tabs */}
-      <div className="flex gap-1 px-4 py-3 border-b border-border overflow-x-auto shrink-0">
-        {STATUS_TABS.map((tab) => (
-          <button
-            key={tab.key}
-            type="button"
-            onClick={() => setStatusFilter(tab.key)}
-            className={cn(
-              'px-3 py-1 rounded-lg text-sm font-medium whitespace-nowrap transition-all',
-              statusFilter === tab.key
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted',
-            )}
-          >
-            {tab.label}
-          </button>
-        ))}
+      <div className="px-4 py-3 border-b border-border shrink-0">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex gap-1 p-1 bg-muted/60 rounded-xl w-fit overflow-x-auto">
+            {STATUS_TABS.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => setStatusFilter(tab.key)}
+                className={cn(
+                  'px-3.5 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-150',
+                  statusFilter === tab.key
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        {isLoading ? (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 w-full rounded-xl" />
-            ))}
-          </div>
-        ) : goals.length === 0 ? (
-          <EmptyState
-            icon={<Target />}
-            title="No goals yet"
-            description="Set your first goal to start tracking your progress."
-            action={{
-              label:   'New Goal',
-              onClick: () => setSheetOpen(true),
-              icon:    <Plus className="h-4 w-4" />,
-            }}
-          />
-        ) : (
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            animate="show"
-            className="space-y-3"
-          >
-            {goals.map((goal) => (
-              <GoalCard key={goal.id} goal={goal} />
-            ))}
-          </motion.div>
-        )}
+      <div className="flex-1 overflow-y-auto p-4 pb-28 md:pb-10">
+        <div className="max-w-2xl mx-auto">
+          {isLoading ? (
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-24 w-full rounded-xl" />
+              ))}
+            </div>
+          ) : goals.length === 0 ? (
+            <EmptyState
+              icon={<Target />}
+              title="No goals yet"
+              description="Set your first goal and break it into milestones."
+              action={{
+                label:   'New Goal',
+                onClick: () => setSheetOpen(true),
+                icon:    <Plus className="h-4 w-4" />,
+              }}
+              className="py-16 rounded-2xl border border-border bg-muted/20"
+            />
+          ) : (
+            <motion.div
+              variants={stagger}
+              initial="hidden"
+              animate="show"
+              className="space-y-3"
+            >
+              {goals.map((goal) => (
+                <GoalCard key={goal.id} goal={goal} />
+              ))}
+            </motion.div>
+          )}
+        </div>
       </div>
 
       {/* Create goal sheet */}

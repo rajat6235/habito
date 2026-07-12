@@ -1,6 +1,7 @@
 // =============================================================================
 // Shared API Response Types — consumed by both frontend and backend
 // =============================================================================
+import type { CustomFieldDef } from './customFields';
 
 // ── Envelope ─────────────────────────────────────────────────────────────────
 
@@ -117,21 +118,25 @@ export interface Habit {
   successRate:      number;
   lastCompletedDate: string | null;
   createdAt:        string;
+  customFields?:    CustomFieldDef[];
 }
 
 export interface HabitWithTodayLog extends Habit {
-  todayLog: HabitLog | null;
+  todayLog:    HabitLog | null;
+  timesPerDay: number;
 }
 
 export interface HabitLog {
-  id:         string;
-  habitId:    string;
-  logDate:    string;
-  status:     'completed' | 'skipped' | 'failed';
-  value:      number | null;
-  note:       string | null;
-  skipReason: string | null;
-  loggedAt:   string;
+  id:              string;
+  habitId:         string;
+  logDate:         string;
+  status:          'completed' | 'skipped' | 'failed';
+  value:           number | null;
+  note:            string | null;
+  skipReason:      string | null;
+  completionCount:    number;
+  loggedAt:           string;
+  customFieldValues?: Record<string, unknown>;
 }
 
 export interface HabitStats {
@@ -147,9 +152,10 @@ export interface HabitStats {
 }
 
 export interface HeatmapDay {
-  date:   string;
-  status: 'completed' | 'skipped' | 'failed' | null;
-  value:  number | null;
+  date:               string;
+  status:             'completed' | 'skipped' | 'failed' | null;
+  value:              number | null;
+  customFieldValues?: Record<string, unknown>;
 }
 
 // ── Recovery ─────────────────────────────────────────────────────────────────
@@ -406,6 +412,8 @@ export interface CalendarDay {
   moodMorning:        number | null;
   moodEvening:        number | null;
   journalWritten:     boolean;
+  tasksCompleted:     number;
+  tasksScheduled:     number;
   recoveryDays:       number;
   notesCreated:       number;
 }

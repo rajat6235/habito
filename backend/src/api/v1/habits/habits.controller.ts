@@ -8,12 +8,22 @@ import {
   CreateHabitInput,
   UpdateHabitInput,
   LogHabitInput,
+  UpdateLogInput,
   ListHabitsQuery,
   HabitLogsQuery,
   CreateCategoryInput,
 } from './habits.validation';
+import { recalculateHabitStreak } from '../../../services/streak.service';
 
 const habitRepo = container.habitRepository;
+
+function getTimesPerDay(frequencyConfig: Record<string, unknown>): number {
+  const type = frequencyConfig['type'];
+  const tpd  = frequencyConfig['timesPerDay'];
+  if (type === 'custom_daily' && typeof tpd === 'number') return tpd;
+  if (type === 'twice_daily') return 2;
+  return 1;
+}
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
@@ -45,7 +55,6 @@ export async function createCategory(req: Request, res: Response, next: NextFunc
         name:      body.name,
         isGlobal:  false,
         sortOrder: body.sortOrder ?? 0,
-        // Only include optional fields when they have values
         ...(body.color !== undefined ? { color: body.color } : {}),
         ...(body.icon  !== undefined ? { icon:  body.icon  } : {}),
       },
@@ -95,13 +104,13 @@ export async function createHabit(req: Request, res: Response, next: NextFunctio
         priority:        body.priority,
         reminderEnabled: body.reminderEnabled,
         startDate:       body.startDate ? new Date(body.startDate) : new Date(),
-        // Optional fields — only include when defined
         ...(body.categoryId     ? { category:      { connect: { id: body.categoryId } } } : {}),
         ...(body.description   !== undefined ? { description:   body.description }   : {}),
         ...(body.icon          !== undefined ? { icon:          body.icon }           : {}),
         ...(body.color         !== undefined ? { color:         body.color }          : {}),
         ...(body.reminderConfig !== undefined ? { reminderConfig: body.reminderConfig as Prisma.InputJsonValue } : {}),
         ...(body.endDate        !== undefined ? { endDate: new Date(body.endDate) }   : {}),
+        ...(body.customFields   !== undefined ? { customFields:   body.customFields as Prisma.InputJsonValue }   : {}),
       },
     });
 
@@ -149,6 +158,7 @@ export async function updateHabit(req: Request, res: Response, next: NextFunctio
           frequencyConfig: body.frequencyConfig as Prisma.InputJsonValue,
           frequencyType:   body.frequencyConfig.type as HabitFrequency,
         } : {}),
+        ...(body.customFields !== undefined ? { customFields: body.customFields as Prisma.InputJsonValue } : {}),
       },
     });
 
@@ -194,37 +204,141 @@ export async function archiveHabit(req: Request, res: Response, next: NextFuncti
 export async function logHabit(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params as { id: string };
-    const body   = req.body as LogHabitInput;
+    const body    = req.body as LogHabitInput;
+    const logDate = new Date(body.date);
+
+    // Block future dates using UTC comparison
+    const todayUTC = new Date().toISOString().slice(0, 10);
+    if (body.date > todayUTC) {
+      throw AppError.badRequest('Cannot log for future dates', 'FUTURE_DATE_NOT_ALLOWED');
+    }
 
     const habit = await habitRepo.findById(id, req.user!.id);
     if (!habit) throw AppError.notFound('Habit');
 
-    const logDate = new Date(body.date);
+    const timesPerDay = getTimesPerDay(habit.frequencyConfig as Record<string, unknown>);
 
-    const log = await habitRepo.upsertLog({
-      habitId: id,
-      userId:  req.user!.id,
-      logDate,
-      status:  body.status as HabitLogStatus,
-      ...(body.value      !== undefined ? { value:      body.value      } : {}),
-      ...(body.note       !== undefined ? { note:       body.note       } : {}),
-      ...(body.skipReason !== undefined ? { skipReason: body.skipReason } : {}),
+    // Atomic read-modify-write inside a transaction to prevent race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      const existingLog  = await tx.habitLog.findUnique({
+        where: { habitId_logDate: { habitId: id, logDate } },
+      });
+      const currentCount = (existingLog as { completionCount?: number } | null)?.completionCount ?? 0;
+
+      if (body.status === 'completed' && currentCount >= timesPerDay) {
+        throw AppError.badRequest(
+          `Already logged ${timesPerDay}/${timesPerDay} times for this habit today`,
+          'HABIT_MAX_COMPLETIONS_REACHED',
+        );
+      }
+
+      const newCount       = body.status === 'completed' ? currentCount + 1 : currentCount;
+      const resolvedStatus = (body.status === 'completed' && newCount >= timesPerDay
+        ? 'completed'
+        : body.status) as HabitLogStatus;
+
+      const upserted = await tx.habitLog.upsert({
+        where:  { habitId_logDate: { habitId: id, logDate } },
+        create: {
+          habitId:         id,
+          userId:          req.user!.id,
+          logDate,
+          status:          resolvedStatus,
+          completionCount: newCount,
+          ...(body.value             !== undefined ? { value:             body.value             } : {}),
+          ...(body.note              !== undefined ? { note:              body.note              } : {}),
+          ...(body.skipReason        !== undefined ? { skipReason:        body.skipReason        } : {}),
+          ...(body.customFieldValues !== undefined ? { customFieldValues: body.customFieldValues as Prisma.InputJsonValue } : {}),
+        },
+        update: {
+          status:          resolvedStatus,
+          completionCount: newCount,
+          loggedAt:        new Date(),
+          ...(body.value             !== undefined ? { value:             body.value             } : {}),
+          ...(body.note              !== undefined ? { note:              body.note              } : {}),
+          ...(body.skipReason        !== undefined ? { skipReason:        body.skipReason        } : {}),
+          ...(body.customFieldValues !== undefined ? { customFieldValues: body.customFieldValues as Prisma.InputJsonValue } : {}),
+        },
+      });
+
+      const wasAlreadyCompleted = existingLog?.status === 'completed';
+      if (resolvedStatus === 'completed' && !wasAlreadyCompleted) {
+        // Correct streak calculation: only continue if last completion was yesterday
+        const lastCompleted = habit.lastCompletedDate;
+        const yesterday     = new Date(logDate);
+        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+        const lastStr      = lastCompleted ? new Date(lastCompleted).toISOString().slice(0, 10) : null;
+        const yesterdayStr = yesterday.toISOString().slice(0, 10);
+        const logDateStr   = logDate.toISOString().slice(0, 10);
+
+        let newStreak: number;
+        if (!lastStr) {
+          newStreak = 1; // First ever completion
+        } else if (lastStr === logDateStr) {
+          newStreak = habit.currentStreak; // Already counted today (defensive)
+        } else if (lastStr === yesterdayStr) {
+          newStreak = habit.currentStreak + 1; // Consecutive day
+        } else {
+          newStreak = 1; // Streak broken — gap in completions
+        }
+
+        await tx.habit.update({
+          where: { id },
+          data: {
+            totalCompletions:  { increment: 1 },
+            currentStreak:     newStreak,
+            longestStreak:     Math.max(newStreak, habit.longestStreak),
+            lastCompletedDate: logDate,
+          },
+        });
+      }
+
+      return { log: upserted, completionCount: newCount };
     });
 
-    if (body.status === 'completed') {
-      const newStreak = habit.currentStreak + 1;
+    sendCreated(res, { ...result.log, timesPerDay, completionCount: result.completionCount });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateLog(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id, date } = req.params as { id: string; date: string };
+    const body    = req.body as UpdateLogInput;
+    const logDate = new Date(date);
+
+    const habit = await habitRepo.findById(id, req.user!.id);
+    if (!habit) throw AppError.notFound('Habit');
+
+    const existing = await habitRepo.findLog(id, logDate);
+    if (!existing) throw AppError.notFound('Habit log');
+
+    const updated = await habitRepo.updateLog(id, logDate, {
+      ...(body.status            !== undefined ? { status:            body.status as HabitLogStatus } : {}),
+      ...(body.value             !== undefined ? { value:             body.value             } : {}),
+      ...(body.note              !== undefined ? { note:              body.note              } : {}),
+      ...(body.skipReason        !== undefined ? { skipReason:        body.skipReason        } : {}),
+      ...(body.customFieldValues !== undefined ? { customFieldValues: body.customFieldValues } : {}),
+    });
+
+    // Recalculate from DB whenever status changes — accurate across all historical edits
+    const prevCompleted = existing.status === 'completed';
+    const nowCompleted  = (body.status ?? existing.status) === 'completed';
+    if (body.status !== undefined && prevCompleted !== nowCompleted) {
+      const streak = await recalculateHabitStreak(id);
       await prisma.habit.update({
         where: { id },
         data: {
-          totalCompletions:  { increment: 1 },
-          currentStreak:     newStreak,
-          longestStreak:     newStreak > habit.longestStreak ? newStreak : habit.longestStreak,
-          lastCompletedDate: logDate,
+          totalCompletions:  streak.totalCompletions,
+          currentStreak:     streak.currentStreak,
+          longestStreak:     streak.longestStreak,
+          lastCompletedDate: streak.lastCompletedDate,
         },
       });
     }
 
-    sendCreated(res, log);
+    sendSuccess(res, updated);
   } catch (err) {
     next(err);
   }
@@ -245,6 +359,20 @@ export async function deleteLog(req: Request, res: Response, next: NextFunction)
       where: { habitId_logDate: { habitId: id, logDate } },
     });
 
+    // Recalculate from remaining logs — accurate for streak and total completions
+    if (log.status === 'completed') {
+      const streak = await recalculateHabitStreak(id);
+      await prisma.habit.update({
+        where: { id },
+        data: {
+          totalCompletions:  streak.totalCompletions,
+          currentStreak:     streak.currentStreak,
+          longestStreak:     streak.longestStreak,
+          lastCompletedDate: streak.lastCompletedDate,
+        },
+      });
+    }
+
     sendSuccess(res, { message: 'Log deleted successfully' });
   } catch (err) {
     next(err);
@@ -259,13 +387,15 @@ export async function getHabitLogs(req: Request, res: Response, next: NextFuncti
     const habit = await habitRepo.findById(id, req.user!.id);
     if (!habit) throw AppError.notFound('Habit');
 
-    const from = new Date(query.from);
-    const to   = new Date(query.to);
+    const now  = new Date();
+    const from = query.from ? new Date(query.from) : new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    const to   = query.to   ? new Date(query.to)   : now;
 
     const logs = await prisma.habitLog.findMany({
       where: {
         habitId: id,
         logDate: { gte: from, lte: to },
+        ...(query.status ? { status: query.status as HabitLogStatus } : {}),
       },
       orderBy: { logDate: 'desc' },
       take:    query.limit + 1,
@@ -282,15 +412,84 @@ export async function getHabitLogs(req: Request, res: Response, next: NextFuncti
   }
 }
 
+export async function getHabitStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params as { id: string };
+
+    const habit = await habitRepo.findById(id, req.user!.id);
+    if (!habit) throw AppError.notFound('Habit');
+
+    const now    = new Date();
+    const from90 = new Date(now.getFullYear(), now.getMonth() - 3, now.getDate());
+    const from30 = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+    const from7  = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+
+    const [allLogs, last30Logs, last7Logs] = await Promise.all([
+      prisma.habitLog.findMany({
+        where:   { habitId: id, logDate: { gte: from90 } },
+        orderBy: { logDate: 'desc' },
+        select:  { logDate: true, status: true, value: true, note: true, completionCount: true, customFieldValues: true },
+      }),
+      prisma.habitLog.findMany({
+        where: { habitId: id, logDate: { gte: from30 }, status: 'completed' },
+        select: { logDate: true },
+      }),
+      prisma.habitLog.findMany({
+        where: { habitId: id, logDate: { gte: from7 }, status: 'completed' },
+        select: { logDate: true },
+      }),
+    ]);
+
+    const completedCount = allLogs.filter(l => l.status === 'completed').length;
+    const totalDays      = allLogs.length;
+
+    const heatmap = allLogs.map(l => ({
+      date:              l.logDate.toISOString().split('T')[0],
+      status:            l.status,
+      value:             l.value ? Number(l.value) : null,
+      note:              l.note,
+      completionCount:   l.completionCount,
+      customFieldValues: (l.customFieldValues ?? {}) as Record<string, unknown>,
+    }));
+
+    const byDayOfWeek = [0, 1, 2, 3, 4, 5, 6].map(day => {
+      const dayLogs = allLogs.filter(l => new Date(l.logDate).getDay() === day);
+      const count   = dayLogs.filter(l => l.status === 'completed').length;
+      return { day, count, rate: dayLogs.length > 0 ? Math.round((count / dayLogs.length) * 100) : 0 };
+    });
+
+    sendSuccess(res, {
+      habitId:            id,
+      title:              habit.title,
+      currentStreak:      habit.currentStreak,
+      longestStreak:      habit.longestStreak,
+      totalCompletions:   habit.totalCompletions,
+      successRate:        totalDays > 0 ? Math.round((completedCount / totalDays) * 100) : 0,
+      last30Days:         last30Logs.length,
+      last7Days:          last7Logs.length,
+      heatmap,
+      byDayOfWeek,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function getTodayHabits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    // Midnight-UTC Date to match the @db.Date column
     const now   = new Date();
     const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 
     const habits = await habitRepo.getTodayHabits(req.user!.id, today);
 
-    sendSuccess(res, habits);
+    // Attach timesPerDay to each habit
+    const enriched = habits.map(h => ({
+      ...h,
+      timesPerDay: getTimesPerDay(h.frequencyConfig as Record<string, unknown>),
+      todayLog: (h as { logs?: unknown[] }).logs?.[0] ?? null,
+    }));
+
+    sendSuccess(res, enriched);
   } catch (err) {
     next(err);
   }

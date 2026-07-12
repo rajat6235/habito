@@ -7,6 +7,7 @@ import { recoveryRouter } from './recovery/recovery.router';
 import { goalsRouter }    from './goals/goals.router';
 import { plannerRouter }  from './planner/planner.router';
 import { adminRouter }    from './admin/admin.router';
+import { calendarRouter } from './calendar/calendar.router';
 
 export const v1Router = Router();
 
@@ -18,3 +19,4 @@ v1Router.use('/recovery', recoveryRouter);
 v1Router.use('/goals',    goalsRouter);
 v1Router.use('/planner',  plannerRouter);
 v1Router.use('/admin',    adminRouter);
+v1Router.use('/calendar', calendarRouter);

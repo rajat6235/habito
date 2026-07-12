@@ -1,4 +1,4 @@
-import { PrismaClient, Habit, HabitLog, Prisma, HabitLogStatus } from '@prisma/client';
+import { PrismaClient, Habit, HabitLog, Prisma, HabitLogStatus, $Enums } from '@prisma/client';
 import { BaseRepository } from './base.repository';
 
 export class HabitRepository extends BaseRepository {
@@ -46,6 +46,7 @@ export class HabitRepository extends BaseRepository {
         categoryId:       true,
         createdAt:        true,
         category:         true,
+        customFields:     true,
       },
     });
   }
@@ -88,23 +89,50 @@ export class HabitRepository extends BaseRepository {
     value?: number;
     note?: string;
     skipReason?: string;
+    completionCount?: number;
   }): Promise<HabitLog> {
     return this.db.habitLog.upsert({
       where: { habitId_logDate: { habitId: data.habitId, logDate: data.logDate } },
       create: {
-        habitId:  data.habitId,
-        userId:   data.userId,
-        logDate:  data.logDate,
-        status:   data.status,
+        habitId:         data.habitId,
+        userId:          data.userId,
+        logDate:         data.logDate,
+        status:          data.status,
+        completionCount: data.completionCount ?? 1,
         ...(data.value      !== undefined ? { value:      data.value      } : {}),
         ...(data.note       !== undefined ? { note:       data.note       } : {}),
         ...(data.skipReason !== undefined ? { skipReason: data.skipReason } : {}),
       },
       update: {
-        status: data.status,
+        status:          data.status,
+        completionCount: data.completionCount ?? 1,
         ...(data.value      !== undefined ? { value:      data.value      } : {}),
         ...(data.note       !== undefined ? { note:       data.note       } : {}),
         ...(data.skipReason !== undefined ? { skipReason: data.skipReason } : {}),
+      },
+    });
+  }
+
+  async updateLog(habitId: string, logDate: Date, data: {
+    status?:            HabitLogStatus;
+    value?:             number | null;
+    note?:              string | null;
+    skipReason?:        string | null;
+    customFieldValues?: Record<string, unknown> | null;
+  }): Promise<HabitLog> {
+    return this.db.habitLog.update({
+      where: { habitId_logDate: { habitId, logDate } },
+      data: {
+        ...(data.status            !== undefined ? { status:            data.status            } : {}),
+        ...(data.value             !== undefined ? { value:             data.value             } : {}),
+        ...(data.note              !== undefined ? { note:              data.note              } : {}),
+        ...(data.skipReason        !== undefined ? { skipReason:        data.skipReason        } : {}),
+        ...(data.customFieldValues !== undefined ? {
+          customFieldValues: data.customFieldValues === null
+            ? Prisma.JsonNull
+            : data.customFieldValues as Prisma.InputJsonValue,
+        } : {}),
+        loggedAt: new Date(),
       },
     });
   }
@@ -143,6 +171,7 @@ export class HabitRepository extends BaseRepository {
         categoryId:       true,
         createdAt:        true,
         category:         true,
+        customFields:     true,
         logs: { where: { logDate: today }, take: 1 },
       },
       orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],

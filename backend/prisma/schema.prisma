@@ -567,6 +567,7 @@ model Habit {
   priority        Priority       @default(medium)
   reminderEnabled Boolean        @default(false) @map("reminder_enabled")
   reminderConfig  Json           @default("{}") @map("reminder_config")
+  customFields    Json?          @map("custom_fields")
   startDate       DateTime       @default(now()) @map("start_date") @db.Date
   endDate         DateTime?      @map("end_date") @db.Date
   isArchived      Boolean        @default(false) @map("is_archived")
@@ -594,16 +595,18 @@ model Habit {
 }
 
 model HabitLog {
-  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  habitId    String         @map("habit_id") @db.Uuid
-  userId     String         @map("user_id") @db.Uuid
-  logDate    DateTime       @map("log_date") @db.Date
-  status     HabitLogStatus
-  value      Decimal?       @db.Decimal(10, 2)
-  note       String?
-  skipReason String?        @map("skip_reason") @db.VarChar(200)
-  loggedAt   DateTime       @default(now()) @map("logged_at") @db.Timestamptz(6)
-  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  id              String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  habitId         String         @map("habit_id") @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  logDate         DateTime       @map("log_date") @db.Date
+  status          HabitLogStatus
+  value           Decimal?       @db.Decimal(10, 2)
+  note            String?
+  skipReason      String?        @map("skip_reason") @db.VarChar(200)
+  completionCount   Int           @default(1) @map("completion_count") @db.SmallInt
+  customFieldValues Json?         @map("custom_field_values")
+  loggedAt          DateTime      @default(now()) @map("logged_at") @db.Timestamptz(6)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
 
   habit Habit @relation(fields: [habitId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)

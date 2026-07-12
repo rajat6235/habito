@@ -299,13 +299,20 @@ export function RecoveryView() {
         variants={stagger}
         initial="hidden"
         animate="show"
-        className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto space-y-6"
+        className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto space-y-6 pb-28 md:pb-10"
       >
         {/* Header */}
         <motion.div variants={fadeUp} className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Recovery</h1>
-            <p className="text-sm text-muted-foreground mt-0.5">Track sobriety streaks and relapses</p>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+              Recovery
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight">Your journey</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {goals.length > 0 && goals.some((g) => g.status === 'active')
+                ? 'Every moment sober is a victory.'
+                : 'Start tracking your sobriety streak.'}
+            </p>
           </div>
           <Button onClick={() => setShowCreate(true)} size="sm" className="shrink-0">
             <Plus className="h-4 w-4" />

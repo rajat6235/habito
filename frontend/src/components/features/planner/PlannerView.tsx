@@ -13,7 +13,6 @@ import {
   useDeleteTask, useCarryOverTasks,
 } from '@/hooks/api/usePlanner';
 import type { PlannerTask } from '@/lib/api/planner.api';
-import { EmptyState } from '@/components/shared/EmptyState';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -293,12 +292,19 @@ export function PlannerView() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-border shrink-0 space-y-3">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Planner</h1>
+      <div className="px-4 pt-5 pb-3 border-b border-border shrink-0 space-y-3">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+              Planner
+            </p>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {isToday(date) ? 'Today' : format(date, 'EEEE')}
+            </h1>
+          </div>
           {!isToday(date) && (
-            <Button size="sm" variant="ghost" onClick={goToday}>
-              Today
+            <Button size="sm" variant="ghost" onClick={goToday} className="shrink-0 mt-1">
+              Back to today
             </Button>
           )}
         </div>
@@ -318,23 +324,14 @@ export function PlannerView() {
       </div>
 
       {/* Task list */}
-      <div className="flex-1 overflow-y-auto p-4">
+      <div className="flex-1 overflow-y-auto p-4 pb-28 md:pb-4">
         {isLoading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
               <Skeleton key={i} className="h-10 w-full rounded-lg" />
             ))}
           </div>
-        ) : tasks.length === 0 ? (
-          <EmptyState
-            icon={<Plus />}
-            title="No tasks for this day"
-            description="Add tasks below to plan your day with intention."
-          />
-        ) : null}
-
-        {/* Always show blocks with add buttons */}
-        {!isLoading && (
+        ) : (
           <div className="space-y-4">
             {ALL_BLOCKS.map((block) => {
               const blockTasks = grouped[block] ?? [];
