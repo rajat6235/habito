@@ -152,8 +152,9 @@ function SidebarContent({
 
   return (
     <>
-      {/* Header */}
-      <div className="flex items-center h-14 px-3 border-b border-border shrink-0 gap-2">
+      {/* Header — pt-safe aligns with TopBar so the logo row clears the notch */}
+      <div className="border-b border-border shrink-0 pt-safe">
+      <div className="flex items-center h-14 px-3 gap-2">
         <AnimatePresence mode="wait" initial={false}>
           {collapsed ? (
             <motion.span key="collapsed" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.1 }} className="text-base font-bold gradient-text mx-auto">h</motion.span>
@@ -171,6 +172,7 @@ function SidebarContent({
             <TooltipContent side="right">Collapse sidebar</TooltipContent>
           </Tooltip>
         )}
+      </div>
       </div>
 
       {/* Nav */}
@@ -193,8 +195,8 @@ function SidebarContent({
         ))}
       </nav>
 
-      {/* Bottom */}
-      <div className="px-2 pb-3 space-y-0.5 border-t border-border pt-3 shrink-0">
+      {/* Bottom — pb-safe-or-3 ensures ≥12 px gap on all devices, more on iPhone with home bar */}
+      <div className="px-2 pb-safe-or-3 space-y-0.5 border-t border-border pt-3 shrink-0">
         {user?.roles?.some(r => r === 'admin' || r === 'super_admin') && (
           <div onClick={onNavClick}><SidebarLink item={ADMIN_ITEM} collapsed={collapsed} active={isActive(ADMIN_ITEM.href)} /></div>
         )}

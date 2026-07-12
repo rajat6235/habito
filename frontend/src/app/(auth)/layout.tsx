@@ -108,7 +108,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
       {/* ── Right form area ── */}
       <div
-        className="flex-1 flex items-center justify-center p-6 md:p-10 relative"
+        className="flex-1 flex items-center justify-center px-6 md:p-10 pt-safe-or-6 pb-safe-or-6 relative"
         style={{
           backgroundImage:
             "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32'%3E%3Ccircle cx='1' cy='1' r='1' fill='hsl(220 13%25 91%25)' fill-opacity='0.4'/%3E%3C/svg%3E\")",

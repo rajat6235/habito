@@ -3,7 +3,21 @@ import { format, eachDayOfInterval, parseISO } from 'date-fns';
 import { prisma } from '../../../config/database';
 import { sendSuccess } from '../../../utils/response';
 import type { CalendarDaysQuery } from './calendar.validation';
-import type { CalendarDay } from '@shared/types/api.types';
+
+interface CalendarDay {
+  date:               string;
+  habitsCompleted:    number;
+  habitsScheduled:    number;
+  habitCompletionPct: number;
+  workoutCount:       number;
+  moodMorning:        number | null;
+  moodEvening:        number | null;
+  journalWritten:     boolean;
+  tasksCompleted:     number;
+  tasksScheduled:     number;
+  recoveryDays:       number;
+  notesCreated:       number;
+}
 
 // ── Real-time aggregation for today (cron hasn't run yet) ─────────────────────
 

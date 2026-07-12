@@ -28,8 +28,8 @@ export function HabitHistorySheet({ habit, onClose }: HabitHistorySheetProps) {
       <Sheet open={Boolean(habit)} onOpenChange={(o) => !o && onClose()}>
         <SheetContent side="right" className="w-full sm:max-w-lg gap-0 p-0 flex flex-col">
 
-          {/* ── Header ── */}
-          <SheetHeader className="px-5 pt-5 pb-4 border-b border-border shrink-0">
+          {/* ── Header ── pt-safe-or-5 clears the notch on this full-height right sheet */}
+          <SheetHeader className="px-5 pt-safe-or-5 pb-4 border-b border-border shrink-0">
             <div className="flex items-center gap-3">
               {habit?.icon && (
                 <span
@@ -60,7 +60,7 @@ export function HabitHistorySheet({ habit, onClose }: HabitHistorySheetProps) {
             </div>
           </SheetHeader>
 
-          <div className="flex-1 overflow-y-auto p-5">
+          <div className="flex-1 overflow-y-auto px-5 pt-5 pb-safe-or-6">
             {habit && (
               <Tabs defaultValue="timeline">
                 <TabsList className="w-full mb-5 grid grid-cols-4 h-10">

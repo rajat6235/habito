@@ -14,7 +14,7 @@ export function OfflineBanner() {
           initial={{ y: -40, opacity: 0 }}
           animate={{ y: 0,  opacity: 1 }}
           exit={{ y: -40, opacity: 0 }}
-          className="fixed top-0 inset-x-0 z-[190] flex items-center justify-center gap-2 bg-destructive px-4 py-2 text-destructive-foreground text-sm font-medium"
+          className="fixed top-0 inset-x-0 z-[190] flex items-center justify-center gap-2 bg-destructive px-4 py-2 pt-safe text-destructive-foreground text-sm font-medium"
           role="alert"
           aria-live="assertive"
         >

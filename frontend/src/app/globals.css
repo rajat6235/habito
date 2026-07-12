@@ -127,13 +127,27 @@
     @apply bg-gradient-to-r from-brand-500 to-brand-700 bg-clip-text text-transparent;
   }
 
-  /* Safe area inset for mobile PWA */
-  .pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-  .pt-safe {
-    padding-top: env(safe-area-inset-top);
-  }
+  /* ── iOS/Android safe area utilities for PWA (viewport-fit=cover) ──
+   *
+   * The 0px fallback ensures non-supporting browsers get zero inset.
+   * max() variants guarantee minimum padding even on devices with zero inset,
+   * preventing collapsed spacing on Android / desktop. */
+
+  /* Raw safe area padding — use when you want ONLY the inset, no minimum */
+  .pt-safe  { padding-top:    env(safe-area-inset-top,    0px); }
+  .pb-safe  { padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pl-safe  { padding-left:   env(safe-area-inset-left,   0px); }
+  .pr-safe  { padding-right:  env(safe-area-inset-right,  0px); }
+
+  /* Safe area with minimum fallback — use on interactive elements that need
+   * inherent spacing even on Android/desktop (e.g. sidebar bottoms, nav bottoms) */
+  .pt-safe-or-5 { padding-top:    max(1.25rem, env(safe-area-inset-top,    0px)); }
+  .pt-safe-or-6 { padding-top:    max(1.5rem,  env(safe-area-inset-top,    0px)); }
+  .pb-safe-or-3 { padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px)); }
+  .pb-safe-or-6 { padding-bottom: max(1.5rem,  env(safe-area-inset-bottom, 0px)); }
+
+  /* Close-button top position for sheets that touch the top screen edge */
+  .top-safe-or-4 { top: max(1rem, env(safe-area-inset-top, 0px)); }
 
   /* Noise texture overlay */
   .noise {

@@ -59,11 +59,36 @@ const SheetContent = React.forwardRef<
     <SheetOverlay />
     <SheetPrimitive.Content
       ref={ref}
-      className={cn(sheetVariants({ side }), 'flex flex-col p-6', className)}
+      className={cn(
+        sheetVariants({ side }),
+        'flex flex-col',
+        /*
+         * Safe-area-aware padding per direction:
+         *  bottom → only the bottom edge is at a screen boundary (home bar)
+         *  top    → only the top edge is at a screen boundary (notch/Dynamic Island)
+         *  left/right → both top and bottom edges touch screen boundaries
+         *
+         * max() variants keep a sensible minimum on devices with zero insets
+         * (Android, desktop) so spacing never collapses to 0.
+         */
+        side === 'bottom'
+          ? 'pt-6 px-6 pb-safe-or-6'
+          : side === 'top'
+          ? 'pb-6 px-6 pt-safe-or-6'
+          : 'px-6 pt-safe-or-6 pb-safe-or-6',
+        className,
+      )}
       {...props}
     >
       {children}
-      <SheetPrimitive.Close className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+      <SheetPrimitive.Close
+        className={cn(
+          'absolute right-4 rounded-md p-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors',
+          // bottom sheets open upward — close button sits at natural top-4
+          // all other sides touch the top screen edge, so shift button below safe area
+          side === 'bottom' ? 'top-4' : 'top-safe-or-4',
+        )}
+      >
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
       </SheetPrimitive.Close>

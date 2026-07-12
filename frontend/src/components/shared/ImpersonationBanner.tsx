@@ -25,7 +25,7 @@ export function ImpersonationBanner() {
     <div
       role="alert"
       aria-live="polite"
-      className="fixed top-0 inset-x-0 z-[200] flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 text-amber-950 text-sm font-semibold"
+      className="fixed top-0 inset-x-0 z-[200] flex items-center justify-center gap-3 bg-amber-500 px-4 py-2 pt-safe text-amber-950 text-sm font-semibold"
     >
       <Shield className="h-4 w-4 shrink-0" />
       <span>You are impersonating a user on behalf of admin <strong>{impersonatedBy}</strong></span>
