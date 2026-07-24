@@ -11,30 +11,55 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import type { JournalEntry } from '@/lib/api/journal.api';
 
-// ── Mood Slider ───────────────────────────────────────────────────────────────
+// ── Mood Picker ───────────────────────────────────────────────────────────────
+
+const MOOD_DATA = [
+  { emoji: '😞', label: 'Terrible'  },
+  { emoji: '😕', label: 'Bad'       },
+  { emoji: '😐', label: 'Okay'      },
+  { emoji: '🙂', label: 'Alright'   },
+  { emoji: '😊', label: 'Good'      },
+  { emoji: '😄', label: 'Great'     },
+  { emoji: '🥰', label: 'Wonderful' },
+  { emoji: '🤩', label: 'Amazing'   },
+  { emoji: '💪', label: 'Powerful'  },
+  { emoji: '🚀', label: 'Unstoppable'},
+] as const;
 
 function MoodPicker({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number) => void }) {
-  const EMOJIS = ['😞', '😕', '😐', '🙂', '😊', '😄', '🥰', '🤩', '💪', '🚀'];
+  const selected = value != null ? MOOD_DATA[value - 1] : null;
   return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium text-muted-foreground">{label}</p>
-      <div className="flex gap-1.5 flex-wrap">
-        {EMOJIS.map((emoji, i) => (
+    <div className="space-y-2.5">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium text-muted-foreground">{label}</p>
+        {selected && (
+          <span className="text-xs font-semibold text-foreground/70">
+            {selected.emoji} {selected.label}
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-5 gap-1.5">
+        {MOOD_DATA.map((m, i) => (
           <button
             key={i}
             type="button"
+            aria-label={`Mood: ${m.label} (${i + 1}/10)`}
+            aria-pressed={value === i + 1}
             onClick={() => onChange(i + 1)}
             className={cn(
-              'h-9 w-9 text-lg rounded-lg border transition-all',
+              'h-11 w-full text-xl rounded-xl border transition-all duration-100',
               value === i + 1
-                ? 'border-primary bg-primary/10 scale-110'
-                : 'border-border hover:border-primary/50',
+                ? 'border-primary bg-primary/10 scale-105 shadow-sm'
+                : 'border-border hover:border-primary/40 hover:bg-muted/50',
             )}
           >
-            {emoji}
+            {m.emoji}
           </button>
         ))}
       </div>
+      {!value && (
+        <p className="text-[11px] text-muted-foreground/60 text-center">Tap to select your mood</p>
+      )}
     </div>
   );
 }
@@ -61,11 +86,12 @@ function ListField({ label, items, onChange, placeholder }: {
       <div className="space-y-1.5">
         {display.map((item, idx) => (
           <div key={idx} className="flex items-center gap-2">
-            <span className="text-muted-foreground text-sm w-4 shrink-0">{idx + 1}.</span>
+            <span className="text-muted-foreground text-sm w-4 shrink-0 select-none" aria-hidden>{idx + 1}.</span>
             <input
               value={item}
               onChange={(e) => update(idx, e.target.value)}
               placeholder={placeholder}
+              aria-label={`${label} item ${idx + 1}`}
               className="flex-1 bg-transparent border-b border-border focus:border-primary outline-none text-sm py-1 placeholder:text-muted-foreground/50 transition-colors"
             />
           </div>
@@ -128,8 +154,9 @@ function MorningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
         placeholder="I'm grateful for…"
       />
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Today's intention</label>
+        <label htmlFor="morning-intention" className="text-sm font-medium">Today's intention</label>
         <Textarea
+          id="morning-intention"
           value={intention}
           onChange={(e) => setIntention(e.target.value)}
           placeholder="Today I intend to…"
@@ -137,8 +164,9 @@ function MorningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
         />
       </div>
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Free thoughts</label>
+        <label htmlFor="morning-content" className="text-sm font-medium">Free thoughts</label>
         <Textarea
+          id="morning-content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Anything on your mind…"
@@ -189,11 +217,13 @@ function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
       <MoodPicker label="How did you feel today? 🌙" value={mood} onChange={setMood} />
       <div className="space-y-2">
         <p className="text-sm font-medium">Day rating</p>
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="group" aria-label="Day rating 1 to 5">
           {[1, 2, 3, 4, 5].map((n) => (
             <button
               key={n}
               type="button"
+              aria-label={`${n} star${n > 1 ? 's' : ''}`}
+              aria-pressed={rating === n}
               onClick={() => setRating(n)}
               className={cn(
                 'h-10 w-10 rounded-lg border text-sm font-semibold transition-all',
@@ -213,8 +243,9 @@ function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
         placeholder="Something that went well…"
       />
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">What did you learn today?</label>
+        <label htmlFor="evening-lessons" className="text-sm font-medium">What did you learn today?</label>
         <Textarea
+          id="evening-lessons"
           value={lessons}
           onChange={(e) => setLessons(e.target.value)}
           placeholder="Today I learned that…"
@@ -222,8 +253,9 @@ function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
         />
       </div>
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Reflections</label>
+        <label htmlFor="evening-content" className="text-sm font-medium">Reflections</label>
         <Textarea
+          id="evening-content"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           placeholder="Any other thoughts about today…"
@@ -255,7 +287,9 @@ function FreeWriteForm({ entry, date, onSaved }: { entry?: JournalEntry; date: s
 
   return (
     <div className="space-y-4">
+      <label htmlFor="free-write-content" className="sr-only">Free write journal entry</label>
       <Textarea
+        id="free-write-content"
         value={content}
         onChange={(e) => setContent(e.target.value)}
         placeholder="Let your thoughts flow…"

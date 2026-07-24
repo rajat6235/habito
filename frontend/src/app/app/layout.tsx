@@ -19,7 +19,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <TopBar />
 
-          <main className="flex-1 overflow-y-auto scrollbar-thin pb-safe md:pb-0">
+          <main id="main-content" className="flex-1 overflow-y-auto scrollbar-thin pb-safe md:pb-0">
             {/* Bottom nav safe-area offset on mobile */}
             <div className="pb-[var(--bottom-nav-height)] md:pb-0">
               {children}

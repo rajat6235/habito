@@ -169,8 +169,9 @@ export function RegisterPage() {
       >
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label>First name</Label>
+            <Label htmlFor="reg-firstName">First name</Label>
             <Input
+              id="reg-firstName"
               placeholder="Jane"
               aria-invalid={!!errors.firstName}
               {...register('firstName')}
@@ -180,8 +181,9 @@ export function RegisterPage() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label>Last name</Label>
+            <Label htmlFor="reg-lastName">Last name</Label>
             <Input
+              id="reg-lastName"
               placeholder="Doe"
               aria-invalid={!!errors.lastName}
               {...register('lastName')}
@@ -193,8 +195,9 @@ export function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label>Username</Label>
+          <Label htmlFor="reg-username">Username</Label>
           <Input
+            id="reg-username"
             placeholder="your_username"
             autoComplete="username"
             aria-invalid={!!errors.username}
@@ -206,8 +209,9 @@ export function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label>Email</Label>
+          <Label htmlFor="reg-email">Email</Label>
           <Input
+            id="reg-email"
             type="email"
             placeholder="you@example.com"
             autoComplete="email"
@@ -220,9 +224,10 @@ export function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label>Password</Label>
+          <Label htmlFor="reg-password">Password</Label>
           <div className="relative">
             <Input
+              id="reg-password"
               type={showPassword ? 'text' : 'password'}
               placeholder="••••••••"
               autoComplete="new-password"

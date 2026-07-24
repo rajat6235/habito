@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import Link from 'next/link';
-import { CheckSquare, Flame, ArrowRight, Plus, BookOpen } from 'lucide-react';
+import { CheckSquare, Flame, ArrowRight, Plus, BookOpen, Target, ClipboardList } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { useTodayHabits, useLogHabit } from '@/hooks/api/useHabits';
@@ -199,20 +199,48 @@ export function DashboardView() {
       </motion.section>
 
       {/* ── Quick actions ── */}
-      <motion.div variants={fadeUp}>
-        <Link
-          href="/app/journal"
-          className="flex items-center gap-4 p-4 rounded-2xl border border-border bg-card hover:bg-muted/40 transition-all group hover:border-border/80 hover:shadow-sm"
-        >
-          <div className="h-10 w-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center shrink-0">
-            <BookOpen className="h-5 w-5" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold">Daily Journal</p>
-            <p className="text-xs text-muted-foreground mt-0.5">How are you feeling today?</p>
-          </div>
-          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
-        </Link>
+      <motion.div variants={fadeUp} className="space-y-2">
+        <h2 className="text-[13px] font-semibold text-muted-foreground uppercase tracking-wide">Quick actions</h2>
+        <div className="grid grid-cols-1 gap-2">
+          {[
+            {
+              href:    '/app/journal',
+              icon:    <BookOpen className="h-4.5 w-4.5" />,
+              bg:      'bg-amber-500/10 text-amber-500',
+              title:   'Daily Journal',
+              desc:    'Morning check-in or evening reflection',
+            },
+            {
+              href:    '/app/goals',
+              icon:    <Target className="h-4.5 w-4.5" />,
+              bg:      'bg-blue-500/10 text-blue-500',
+              title:   'Goals',
+              desc:    'Track your long-term ambitions',
+            },
+            {
+              href:    '/app/planner',
+              icon:    <ClipboardList className="h-4.5 w-4.5" />,
+              bg:      'bg-violet-500/10 text-violet-500',
+              title:   'Planner',
+              desc:    "Today's tasks and priorities",
+            },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center gap-3.5 p-3.5 rounded-xl border border-border bg-card hover:bg-muted/40 transition-all group hover:border-border/80 hover:shadow-sm"
+            >
+              <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', item.bg)}>
+                {item.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold leading-none">{item.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">{item.desc}</p>
+              </div>
+              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all shrink-0" />
+            </Link>
+          ))}
+        </div>
       </motion.div>
     </motion.div>
   );

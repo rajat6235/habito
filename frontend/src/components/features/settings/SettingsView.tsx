@@ -126,7 +126,7 @@ function ProfileTab() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 max-w-lg">
       {/* Avatar */}
       {displayUser && (
         <div className="flex items-center gap-4">
@@ -181,12 +181,12 @@ function ProfileTab() {
 
       {/* Timezone */}
       <div className="space-y-1.5">
-        <Label>Timezone</Label>
+        <Label htmlFor="s-timezone">Timezone</Label>
         <Select
           value={watchedTimezone}
           onValueChange={(v) => setValue('timezone', v, { shouldDirty: true })}
         >
-          <SelectTrigger>
+          <SelectTrigger id="s-timezone">
             <SelectValue placeholder="Select timezone" />
           </SelectTrigger>
           <SelectContent>
@@ -244,7 +244,7 @@ function SecurityTab() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5 max-w-lg">
       <div>
         <h3 className="text-sm font-semibold mb-1">Change password</h3>
         <p className="text-xs text-muted-foreground">
@@ -364,7 +364,7 @@ function SessionsTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-lg">
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold">Active sessions</h3>
@@ -461,32 +461,34 @@ export function SettingsView() {
 
       {/* Tabs */}
       <div className="flex-1 overflow-y-auto">
-        <Tabs defaultValue="profile" className="h-full flex flex-col">
-          <TabsList className="mx-4 mt-4 mb-0 w-auto self-start">
-            <TabsTrigger value="profile" className="gap-1.5">
-              <User className="h-3.5 w-3.5" />
-              Profile
-            </TabsTrigger>
-            <TabsTrigger value="security" className="gap-1.5">
-              <Shield className="h-3.5 w-3.5" />
-              Security
-            </TabsTrigger>
-            <TabsTrigger value="sessions" className="gap-1.5">
-              <Monitor className="h-3.5 w-3.5" />
-              Sessions
-            </TabsTrigger>
-          </TabsList>
+        <div className="max-w-2xl mx-auto">
+          <Tabs defaultValue="profile" className="h-full flex flex-col">
+            <TabsList className="mx-4 mt-4 mb-0 w-auto self-start">
+              <TabsTrigger value="profile" className="gap-1.5">
+                <User className="h-3.5 w-3.5" />
+                Profile
+              </TabsTrigger>
+              <TabsTrigger value="security" className="gap-1.5">
+                <Shield className="h-3.5 w-3.5" />
+                Security
+              </TabsTrigger>
+              <TabsTrigger value="sessions" className="gap-1.5">
+                <Monitor className="h-3.5 w-3.5" />
+                Sessions
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="profile" className="flex-1 px-4 py-5">
-            <ProfileTab />
-          </TabsContent>
-          <TabsContent value="security" className="flex-1 px-4 py-5">
-            <SecurityTab />
-          </TabsContent>
-          <TabsContent value="sessions" className="flex-1 px-4 py-5">
-            <SessionsTab />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="profile" className="flex-1 px-4 py-5">
+              <ProfileTab />
+            </TabsContent>
+            <TabsContent value="security" className="flex-1 px-4 py-5">
+              <SecurityTab />
+            </TabsContent>
+            <TabsContent value="sessions" className="flex-1 px-4 py-5">
+              <SessionsTab />
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </div>
   );

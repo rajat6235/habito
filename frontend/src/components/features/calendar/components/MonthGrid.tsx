@@ -9,17 +9,27 @@ import {
 import { cn } from '@/lib/utils';
 import type { CalendarDay } from '@shared/types/api.types';
 
-// ── Constants ──��──────────────────────────────────────────────────────────────
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
-// ── Dot helpers ───────────��───────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function habitBg(pct: number, scheduled: number): string {
+  if (scheduled === 0) return '';
+  if (pct === 100) return 'bg-emerald-500/[0.08] dark:bg-emerald-500/[0.12]';
+  if (pct >= 75)   return 'bg-violet-500/[0.07] dark:bg-violet-500/[0.10]';
+  if (pct >= 50)   return 'bg-violet-500/[0.05] dark:bg-violet-500/[0.08]';
+  if (pct >= 25)   return 'bg-amber-500/[0.06] dark:bg-amber-500/[0.09]';
+  if (pct > 0)     return 'bg-rose-500/[0.04] dark:bg-rose-500/[0.07]';
+  return '';
+}
 
 function habitDotColor(pct: number, scheduled: number): string | null {
   if (scheduled === 0) return null;
-  if (pct === 100)  return 'bg-emerald-500';
-  if (pct >= 50)    return 'bg-violet-500';
-  if (pct > 0)      return 'bg-amber-400';
+  if (pct === 100) return 'bg-emerald-500';
+  if (pct >= 50)   return 'bg-violet-500';
+  if (pct > 0)     return 'bg-amber-400';
   return 'bg-rose-400/60';
 }
 
@@ -33,7 +43,7 @@ function moodEmoji(morning: number | null, evening: number | null): string | nul
   return '😞';
 }
 
-// ── Day cell ───────────────────────────────────────────��──────────────────────
+// ── Day cell ──────────────────────────────────────────────────────────────────
 
 interface DayCellProps {
   date:     Date;
@@ -45,7 +55,11 @@ interface DayCellProps {
 
 function DayCell({ date, calDay, selected, inMonth, onClick }: DayCellProps) {
   const today      = isToday(date);
-  const habitColor = calDay ? habitDotColor(calDay.habitCompletionPct, calDay.habitsScheduled) : null;
+  const pct        = calDay?.habitCompletionPct ?? 0;
+  const scheduled  = calDay?.habitsScheduled    ?? 0;
+  const completed  = calDay?.habitsCompleted    ?? 0;
+  const habitColor = habitDotColor(pct, scheduled);
+  const bg         = habitBg(pct, scheduled);
   const mood       = calDay ? moodEmoji(calDay.moodMorning, calDay.moodEvening) : null;
   const hasJournal = calDay?.journalWritten ?? false;
   const hasTasks   = (calDay?.tasksCompleted ?? 0) > 0;
@@ -54,32 +68,47 @@ function DayCell({ date, calDay, selected, inMonth, onClick }: DayCellProps) {
     <button
       type="button"
       onClick={onClick}
+      aria-label={`${format(date, 'MMMM d')}${calDay ? `, ${completed}/${scheduled} habits` : ''}`}
       className={cn(
-        'group relative flex flex-col items-center rounded-xl p-1.5 sm:p-2 transition-all duration-150',
-        'min-h-[3.5rem] sm:min-h-[4.5rem] hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring',
-        selected && 'bg-primary/10 ring-1 ring-primary/40',
-        !inMonth  && 'opacity-30',
+        'group relative flex flex-col rounded-xl p-1.5 transition-all duration-150 cursor-pointer',
+        'min-h-[4.5rem] sm:min-h-[6rem]',
+        'hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        bg,
+        selected && 'ring-1 ring-primary/60 bg-primary/[0.06] dark:bg-primary/[0.10]',
+        !inMonth  && 'opacity-25',
       )}
     >
       {/* Date number */}
       <span
         className={cn(
-          'flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full text-xs sm:text-sm font-semibold',
+          'self-start flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold transition-colors',
           today    && 'bg-primary text-primary-foreground',
           selected && !today && 'text-primary font-bold',
-          !today   && !selected && 'text-foreground',
+          !today && !selected && 'text-foreground',
         )}
       >
         {format(date, 'd')}
       </span>
 
-      {/* Mood emoji — tiny */}
-      {mood && (
-        <span className="text-[11px] leading-none mt-0.5 hidden sm:block">{mood}</span>
-      )}
+      {/* Mood + completion fraction — center of cell */}
+      <div className="flex-1 flex flex-col items-center justify-center gap-0.5 py-0.5">
+        {mood && (
+          <span className="text-[13px] leading-none">{mood}</span>
+        )}
+        {scheduled > 0 && (
+          <span className={cn(
+            'text-[9px] font-semibold tabular-nums leading-none',
+            pct === 100 ? 'text-emerald-600 dark:text-emerald-400' :
+            pct >= 50   ? 'text-violet-600 dark:text-violet-400' :
+                          'text-muted-foreground',
+          )}>
+            {completed}/{scheduled}
+          </span>
+        )}
+      </div>
 
-      {/* Activity dots row */}
-      <div className="flex items-center gap-0.5 mt-auto pt-1">
+      {/* Activity dots */}
+      <div className="flex items-center gap-0.5 self-start">
         {habitColor && (
           <span className={cn('h-1.5 w-1.5 rounded-full shrink-0', habitColor)} />
         )}
@@ -94,7 +123,7 @@ function DayCell({ date, calDay, selected, inMonth, onClick }: DayCellProps) {
   );
 }
 
-// ── MonthGrid ─────────��─────────────────────────���─────────────────────────────
+// ── MonthGrid ─────────────────────────────────────────────────────────────────
 
 interface MonthGridProps {
   month:        Date;
@@ -114,7 +143,6 @@ export function MonthGrid({ month, days, selectedDate, onSelectDate }: MonthGrid
     const end     = endOfMonth(month);
     const allDays = eachDayOfInterval({ start, end });
 
-    // Pad leading cells for the first week (Sun=0)
     const leadingBlanks = getDay(start);
     const blanks = Array.from({ length: leadingBlanks }, (_, i) => {
       const d = new Date(start);
@@ -132,9 +160,10 @@ export function MonthGrid({ month, days, selectedDate, onSelectDate }: MonthGrid
         {WEEKDAY_LABELS.map((label) => (
           <div
             key={label}
-            className="text-center text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-muted-foreground py-1.5"
+            className="text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground py-2"
           >
-            {label}
+            <span className="hidden sm:inline">{label}</span>
+            <span className="sm:hidden">{label[0]}</span>
           </div>
         ))}
       </div>
@@ -145,7 +174,7 @@ export function MonthGrid({ month, days, selectedDate, onSelectDate }: MonthGrid
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: [0.25, 0.4, 0.25, 1] }}
-        className="grid grid-cols-7 gap-px"
+        className="grid grid-cols-7 gap-1"
       >
         {cells.map((date) => {
           const dateStr = format(date, 'yyyy-MM-dd');
@@ -163,9 +192,9 @@ export function MonthGrid({ month, days, selectedDate, onSelectDate }: MonthGrid
       </motion.div>
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-3 px-1">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-4 px-1">
         {[
-          { color: 'bg-emerald-500', label: 'All habits done' },
+          { color: 'bg-emerald-500', label: 'All done' },
           { color: 'bg-violet-500',  label: '50%+ habits' },
           { color: 'bg-amber-400',   label: 'Some habits' },
           { color: 'bg-blue-500',    label: 'Journal' },

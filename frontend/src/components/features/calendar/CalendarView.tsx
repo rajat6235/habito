@@ -35,14 +35,14 @@ interface InsightCardProps {
 
 function InsightCard({ icon, label, value, sub, color }: InsightCardProps) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 hover:border-border/80 hover:shadow-sm transition-all duration-150">
       <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', color)}>
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground truncate">{label}</p>
+        <p className="text-[11px] text-muted-foreground truncate">{label}</p>
         <p className="text-base font-bold tabular-nums leading-tight">{value}</p>
-        {sub && <p className="text-[10px] text-muted-foreground/70">{sub}</p>}
+        {sub && <p className="text-[10px] text-muted-foreground/60 mt-px">{sub}</p>}
       </div>
     </div>
   );
@@ -50,12 +50,15 @@ function InsightCard({ icon, label, value, sub, color }: InsightCardProps) {
 
 function InsightsBar({ days }: { days: CalendarDay[] }) {
   const stats = useMemo(() => {
-    const activeDays    = days.filter((d) => d.habitsScheduled > 0);
+    const activeDays     = days.filter((d) => d.habitsScheduled > 0);
     const totalCompleted = days.reduce((s, d) => s + d.habitsCompleted, 0);
     const totalScheduled = days.reduce((s, d) => s + d.habitsScheduled, 0);
     const avgPct = activeDays.length > 0
       ? Math.round(activeDays.reduce((s, d) => s + d.habitCompletionPct, 0) / activeDays.length)
       : 0;
+
+    // Perfect days (100% habits)
+    const perfectDays = activeDays.filter((d) => d.habitCompletionPct === 100).length;
 
     const moodDays = days.filter((d) => d.moodMorning != null || d.moodEvening != null);
     const avgMood  = moodDays.length > 0
@@ -63,7 +66,6 @@ function InsightsBar({ days }: { days: CalendarDay[] }) {
       : 0;
 
     const journalDays = days.filter((d) => d.journalWritten).length;
-
     const tasksCompleted = days.reduce((s, d) => s + d.tasksCompleted, 0);
 
     // Journal streak (consecutive days from today backwards)
@@ -74,7 +76,7 @@ function InsightsBar({ days }: { days: CalendarDay[] }) {
       else break;
     }
 
-    return { totalCompleted, totalScheduled, avgPct, avgMood, journalDays, tasksCompleted, streak };
+    return { totalCompleted, totalScheduled, avgPct, perfectDays, avgMood, journalDays, tasksCompleted, streak };
   }, [days]);
 
   const EMOJIS = ['😞','😕','😐','🙂','😊','😄','🥰','🤩','💪','🚀'];
@@ -88,27 +90,28 @@ function InsightsBar({ days }: { days: CalendarDay[] }) {
         icon={<CheckSquare className="h-4 w-4" />}
         label="Habits this month"
         value={stats.totalScheduled > 0 ? `${stats.totalCompleted}/${stats.totalScheduled}` : '—'}
-        sub={stats.totalScheduled > 0 ? `${stats.avgPct}% avg` : undefined}
+        sub={stats.totalScheduled > 0 ? `${stats.avgPct}% avg · ${stats.perfectDays} perfect days` : undefined}
         color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
       />
       <InsightCard
         icon={<BookOpen className="h-4 w-4" />}
         label="Journal streak"
         value={stats.streak > 0 ? `${stats.streak}d` : '—'}
-        sub={`${stats.journalDays} days written`}
+        sub={`${stats.journalDays} day${stats.journalDays !== 1 ? 's' : ''} written`}
         color="bg-blue-500/10 text-blue-600 dark:text-blue-400"
       />
       <InsightCard
         icon={<Flame className="h-4 w-4" />}
         label="Avg mood"
         value={moodDisplay}
-        sub={`from ${stats.journalDays} entries`}
+        sub={stats.avgMood > 0 ? `from ${stats.journalDays} entries` : 'No mood data'}
         color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
       />
       <InsightCard
         icon={<Activity className="h-4 w-4" />}
         label="Tasks done"
         value={stats.tasksCompleted > 0 ? String(stats.tasksCompleted) : '—'}
+        sub={stats.tasksCompleted > 0 ? 'this month' : undefined}
         color="bg-orange-500/10 text-orange-600 dark:text-orange-400"
       />
     </div>
@@ -131,6 +134,7 @@ function ViewSwitcher({ active, onChange }: { active: CalView; onChange: (v: Cal
           key={v.key}
           type="button"
           onClick={() => onChange(v.key)}
+          aria-pressed={active === v.key}
           className={cn(
             'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-150',
             active === v.key
@@ -139,7 +143,7 @@ function ViewSwitcher({ active, onChange }: { active: CalView; onChange: (v: Cal
           )}
         >
           {v.icon}
-          <span className="hidden sm:inline">{v.label}</span>
+          <span>{v.label}</span>
         </button>
       ))}
     </div>
@@ -200,9 +204,9 @@ export function CalendarView() {
         className="p-4 md:p-6 lg:p-8 max-w-3xl mx-auto pb-28 md:pb-10 space-y-5"
       >
         {/* ── Header ── */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground mb-0.5">
               Life Calendar
             </p>
             <h1 className="text-2xl font-bold tracking-tight">
@@ -212,22 +216,22 @@ export function CalendarView() {
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0">
             {!isCurrentMonth && view !== 'heatmap' && (
               <button
                 type="button"
                 onClick={goToday}
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-xs font-semibold text-primary border border-primary/30 rounded-lg px-2.5 py-1 hover:bg-primary/5 transition-colors"
               >
                 Today
               </button>
             )}
             {view !== 'heatmap' && (
-              <div className="flex items-center gap-0.5">
+              <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5">
                 <button
                   type="button"
                   onClick={view === 'week' ? () => setWeekAnchor(subWeeks(weekAnchor, 1)) : prevMonth}
-                  className="rounded-lg p-1.5 hover:bg-muted transition-colors"
+                  className="rounded-md p-1.5 hover:bg-background hover:shadow-sm transition-all"
                   aria-label="Previous"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -235,7 +239,7 @@ export function CalendarView() {
                 <button
                   type="button"
                   onClick={view === 'week' ? () => setWeekAnchor(addWeeks(weekAnchor, 1)) : nextMonth}
-                  className="rounded-lg p-1.5 hover:bg-muted transition-colors"
+                  className="rounded-md p-1.5 hover:bg-background hover:shadow-sm transition-all"
                   aria-label="Next"
                 >
                   <ChevronRight className="h-4 w-4" />
@@ -307,13 +311,13 @@ export function CalendarView() {
             onClick={() => handleSelectDate(today)}
             className={cn(
               'w-full flex items-center justify-center gap-2 py-3.5 rounded-xl',
-              'border border-dashed border-border text-muted-foreground',
-              'hover:border-primary/50 hover:text-primary hover:bg-primary/[0.02]',
-              'transition-all text-sm font-medium',
+              'border border-dashed border-primary/30 text-primary/70 bg-primary/[0.02]',
+              'hover:border-primary/60 hover:text-primary hover:bg-primary/[0.04]',
+              'transition-all text-sm font-semibold',
             )}
           >
             <CalendarDays className="h-4 w-4" />
-            Open today&apos;s summary
+            View today&apos;s summary
           </motion.button>
         )}
       </motion.div>

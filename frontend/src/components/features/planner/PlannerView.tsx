@@ -165,6 +165,7 @@ function AddTaskRow({ dateStr, timeBlock }: AddTaskRowProps) {
         onKeyDown={handleKey}
         onBlur={() => void submit()}
         placeholder="Task name…"
+        aria-label="New task name"
         className="flex-1 bg-transparent text-sm outline-none border-b border-primary placeholder:text-muted-foreground/50 py-0.5"
       />
       <Select

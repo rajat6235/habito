@@ -145,8 +145,9 @@ function RelapseModal({ goal, onClose }: { goal: RecoveryGoal; onClose: () => vo
 
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label>What triggered it?</Label>
+            <Label htmlFor="relapse-triggers">What triggered it?</Label>
             <Input
+              id="relapse-triggers"
               placeholder="e.g. stress, boredom, social situation"
               value={triggers}
               onChange={(e) => setTriggers(e.target.value)}
@@ -154,8 +155,9 @@ function RelapseModal({ goal, onClose }: { goal: RecoveryGoal; onClose: () => vo
             <p className="text-xs text-muted-foreground">Separate multiple triggers with commas</p>
           </div>
           <div className="space-y-1.5">
-            <Label>Notes (optional)</Label>
+            <Label htmlFor="relapse-notes">Notes (optional)</Label>
             <Textarea
+              id="relapse-notes"
               placeholder="What were you feeling? What happened?"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
@@ -163,8 +165,9 @@ function RelapseModal({ goal, onClose }: { goal: RecoveryGoal; onClose: () => vo
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Plan for next time (optional)</Label>
+            <Label htmlFor="relapse-plan">Plan for next time (optional)</Label>
             <Textarea
+              id="relapse-plan"
               placeholder="Next time I'll…"
               value={plan}
               onChange={(e) => setPlan(e.target.value)}
@@ -251,8 +254,9 @@ function CreateGoalSheet({ onClose }: { onClose: () => void }) {
 
         {preset === 'custom' && (
           <div className="space-y-1.5">
-            <Label>Goal name</Label>
+            <Label htmlFor="recovery-custom-name">Goal name</Label>
             <Input
+              id="recovery-custom-name"
               placeholder="e.g. No video games"
               value={customName}
               onChange={(e) => setCustomName(e.target.value)}

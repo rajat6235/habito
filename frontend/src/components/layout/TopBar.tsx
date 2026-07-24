@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Bell, Search, Moon, Sun, Monitor } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { useNotificationStore } from '@/stores/notification.store';
@@ -16,6 +17,8 @@ export function TopBar({ title }: TopBarProps) {
   const unreadCount        = useNotificationStore((s) => s.unreadCount);
   const openCommandPalette = useUiStore((s) => s.openCommandPalette);
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   useKeyboardShortcut({
     key:       'k',
@@ -29,8 +32,9 @@ export function TopBar({ title }: TopBarProps) {
     else                         setTheme('light');
   }
 
-  const ThemeIcon  = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
-  const themeLabel = theme === 'light' ? 'Switch to dark' : theme === 'dark' ? 'Switch to system' : 'Switch to light';
+  const resolvedTheme = mounted ? theme : undefined;
+  const ThemeIcon  = resolvedTheme === 'light' ? Sun : resolvedTheme === 'dark' ? Moon : Monitor;
+  const themeLabel = resolvedTheme === 'light' ? 'Switch to dark' : resolvedTheme === 'dark' ? 'Switch to system' : 'Switch to light';
 
   return (
     /*

@@ -140,18 +140,37 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
       <SheetContent side="right" className="w-full sm:max-w-md gap-0 p-0 flex flex-col">
 
         {/* Header */}
-        <SheetHeader className="px-5 pt-5 pb-4 border-b border-border shrink-0">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <SheetTitle className="text-base">{dateLabel}</SheetTitle>
-              <SheetDescription className="flex items-center gap-2 mt-1">
-                {!isLoading && habits.length > 0 && (
-                  <DayScoreBadge pct={dayScore} />
-                )}
+        <SheetHeader className="px-5 pt-safe-or-5 pb-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-3">
+            {/* Day score ring */}
+            {!isLoading && habits.length > 0 && (
+              <div className="relative h-10 w-10 shrink-0">
+                <svg width="40" height="40" style={{ transform: 'rotate(-90deg)' }} aria-hidden>
+                  <circle cx="20" cy="20" r="16" fill="none" stroke="hsl(var(--muted))" strokeWidth="3.5" />
+                  <circle
+                    cx="20" cy="20" r="16" fill="none"
+                    stroke={dayScore === 100 ? '#10b981' : dayScore >= 60 ? '#6d60f0' : '#f59e0b'}
+                    strokeWidth="3.5" strokeLinecap="round"
+                    strokeDasharray={2 * Math.PI * 16}
+                    strokeDashoffset={2 * Math.PI * 16 * (1 - dayScore / 100)}
+                    style={{ transition: 'stroke-dashoffset 0.6s ease' }}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold tabular-nums">
+                  {dayScore}%
+                </span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <SheetTitle className="text-base leading-tight">{dateLabel}</SheetTitle>
+              <SheetDescription className="flex items-center gap-2 mt-0.5">
                 {!isLoading && completedHabits > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {completedHabits}/{habits.length} habits
+                  <span className="text-xs">
+                    {completedHabits}/{habits.length} habits done
                   </span>
+                )}
+                {!isLoading && habits.length === 0 && (
+                  <span className="text-xs text-muted-foreground/60">No habits scheduled</span>
                 )}
               </SheetDescription>
             </div>

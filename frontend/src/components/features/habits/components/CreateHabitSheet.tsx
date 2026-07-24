@@ -74,7 +74,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
     <>
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-md gap-0 p-0 flex flex-col">
-        <SheetHeader className="p-5 pb-4 border-b border-border shrink-0">
+        <SheetHeader className="px-5 pt-safe-or-5 pb-4 border-b border-border shrink-0">
           <SheetTitle>New Habit</SheetTitle>
           <SheetDescription>Build a new routine. Start small.</SheetDescription>
         </SheetHeader>

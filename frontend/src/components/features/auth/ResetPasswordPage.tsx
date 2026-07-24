@@ -60,18 +60,18 @@ export function ResetPasswordPage() {
       {error && <p className="text-destructive text-sm bg-destructive/10 p-3 rounded-lg">{error}</p>}
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">New password</label>
+          <label htmlFor="reset-password" className="text-sm font-medium">New password</label>
           <div className="relative">
-            <input type={showPw ? 'text' : 'password'} className={cn('w-full px-3 py-2 pr-10 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring', errors.password ? 'border-destructive' : 'border-input')} {...register('password')} />
-            <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+            <input id="reset-password" type={showPw ? 'text' : 'password'} className={cn('w-full px-3 py-2 pr-10 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring', errors.password ? 'border-destructive' : 'border-input')} {...register('password')} />
+            <button type="button" onClick={() => setShowPw((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-label={showPw ? 'Hide password' : 'Show password'}>
               {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
           {errors.password && <p className="text-destructive text-xs">Min 8 chars, one uppercase, one number</p>}
         </div>
         <div className="space-y-1.5">
-          <label className="text-sm font-medium">Confirm password</label>
-          <input type="password" className={cn('w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring', errors.confirm ? 'border-destructive' : 'border-input')} {...register('confirm')} />
+          <label htmlFor="reset-confirm" className="text-sm font-medium">Confirm password</label>
+          <input id="reset-confirm" type="password" className={cn('w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring', errors.confirm ? 'border-destructive' : 'border-input')} {...register('confirm')} />
           {errors.confirm && <p className="text-destructive text-xs">{errors.confirm.message}</p>}
         </div>
         <button type="submit" disabled={submitting} className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">

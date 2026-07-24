@@ -193,7 +193,9 @@ export function UsersTable() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="flex-1">
+          <label htmlFor="users-search" className="sr-only">Search users</label>
           <Input
+            id="users-search"
             leftIcon={<Search />}
             placeholder="Search by name or email…"
             value={search}

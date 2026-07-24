@@ -7,65 +7,71 @@ import { useCalendarHeatmap } from '@/hooks/api/useCalendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { CalendarDay } from '@shared/types/api.types';
 
-// ── Metric toggle ──────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 type HeatMetric = 'habits' | 'journal' | 'tasks' | 'overall';
 
-const METRICS: { key: HeatMetric; label: string; color: string }[] = [
-  { key: 'habits',  label: 'Habits',  color: 'bg-violet-500' },
-  { key: 'journal', label: 'Journal', color: 'bg-blue-500'   },
-  { key: 'tasks',   label: 'Tasks',   color: 'bg-orange-400' },
-  { key: 'overall', label: 'Overall', color: 'bg-emerald-500'},
+const METRICS: { key: HeatMetric; label: string; activeClass: string; dotClass: string }[] = [
+  { key: 'habits',  label: 'Habits',  activeClass: 'bg-violet-600 text-white',  dotClass: 'bg-violet-500' },
+  { key: 'journal', label: 'Journal', activeClass: 'bg-blue-600 text-white',    dotClass: 'bg-blue-500'   },
+  { key: 'tasks',   label: 'Tasks',   activeClass: 'bg-orange-500 text-white',  dotClass: 'bg-orange-400' },
+  { key: 'overall', label: 'Overall', activeClass: 'bg-emerald-600 text-white', dotClass: 'bg-emerald-500'},
 ];
 
-// ── Color calculation ─────────────────────────────────────────────────────────
+// ── Color scales ─────────────────────────────────────────────────────────────
 
-function cellColor(day: CalendarDay | undefined, metric: HeatMetric, isEmpty: boolean): string {
-  if (isEmpty || !day) return 'bg-muted/40';
+const HABIT_SCALE  = ['bg-muted/50', 'bg-violet-200/70 dark:bg-violet-900/50', 'bg-violet-300/80 dark:bg-violet-700/60', 'bg-violet-500/80', 'bg-violet-600'];
+const JOURNAL_SCALE= ['bg-muted/50', 'bg-blue-500'];
+const TASKS_SCALE  = ['bg-muted/50', 'bg-orange-200/70 dark:bg-orange-900/40', 'bg-orange-400/70', 'bg-orange-500'];
+const OVERALL_SCALE= ['bg-muted/50', 'bg-emerald-200/70 dark:bg-emerald-900/40', 'bg-emerald-300/80 dark:bg-emerald-700/50', 'bg-emerald-500/80', 'bg-emerald-600'];
+
+function cellColorClass(day: CalendarDay | undefined, metric: HeatMetric, tooEarly: boolean): string {
+  if (tooEarly || !day) return 'bg-muted/40';
 
   switch (metric) {
     case 'habits': {
       const pct = day.habitCompletionPct;
-      if (day.habitsScheduled === 0) return 'bg-muted/40';
-      if (pct === 100) return 'bg-emerald-500';
-      if (pct >= 75)   return 'bg-violet-500';
-      if (pct >= 50)   return 'bg-violet-400/70';
-      if (pct >= 25)   return 'bg-violet-300/60';
-      return 'bg-violet-200/50 dark:bg-violet-800/40';
+      if (day.habitsScheduled === 0) return HABIT_SCALE[0]!;
+      if (pct === 100) return HABIT_SCALE[4]!;
+      if (pct >= 75)   return HABIT_SCALE[3]!;
+      if (pct >= 50)   return HABIT_SCALE[2]!;
+      if (pct >= 25)   return HABIT_SCALE[1]!;
+      return HABIT_SCALE[0]!;
     }
     case 'journal':
-      return day.journalWritten ? 'bg-blue-500' : 'bg-muted/40';
+      return day.journalWritten ? JOURNAL_SCALE[1]! : JOURNAL_SCALE[0]!;
     case 'tasks': {
-      const done = day.tasksCompleted;
+      const done  = day.tasksCompleted;
       const sched = day.tasksScheduled;
-      if (sched === 0) return 'bg-muted/40';
-      if (done === sched) return 'bg-orange-500';
-      if (done > 0)    return 'bg-orange-400/70';
-      return 'bg-orange-200/50 dark:bg-orange-800/40';
+      if (sched === 0 && done === 0) return TASKS_SCALE[0]!;
+      if (done >= sched && done > 0) return TASKS_SCALE[3]!;
+      if (done > 0)                  return TASKS_SCALE[2]!;
+      if (sched > 0)                 return TASKS_SCALE[1]!;
+      return TASKS_SCALE[0]!;
     }
     case 'overall': {
       const score = (
-        (day.habitsScheduled > 0 ? day.habitCompletionPct / 100 : 0) +
+        (day.habitsScheduled > 0  ? day.habitCompletionPct / 100 : 0) +
         (day.journalWritten ? 1 : 0) +
         (day.tasksScheduled > 0 ? (day.tasksCompleted / day.tasksScheduled) : 0)
       ) / 3;
-      if (score >= 0.9) return 'bg-emerald-500';
-      if (score >= 0.6) return 'bg-violet-500';
-      if (score >= 0.3) return 'bg-violet-400/70';
-      if (score >  0)   return 'bg-amber-400/60';
-      return 'bg-muted/40';
+      if (score >= 0.9) return OVERALL_SCALE[4]!;
+      if (score >= 0.6) return OVERALL_SCALE[3]!;
+      if (score >= 0.3) return OVERALL_SCALE[2]!;
+      if (score > 0)    return OVERALL_SCALE[1]!;
+      return OVERALL_SCALE[0]!;
     }
   }
 }
 
-// ── Grid builder (same pattern as StatsTab.buildHeatGrid) ─────────────────────
+// ── Grid builder ──────────────────────────────────────────────────────────────
 
 function buildGrid(days: CalendarDay[], daysBack: number) {
-  const today     = new Date();
+  const today    = new Date();
   today.setHours(0, 0, 0, 0);
-  const dayMap    = new Map(days.map((d) => [d.date, d]));
-  const earliest  = subDays(today, daysBack - 1);
-  const offset    = earliest.getDay();
+  const dayMap   = new Map(days.map((d) => [d.date, d]));
+  const earliest = subDays(today, daysBack - 1);
+  const offset   = earliest.getDay();
   const startDate = subDays(earliest, offset);
 
   const weeks: { date: string; day: CalendarDay | undefined; tooEarly: boolean }[][] = [];
@@ -82,8 +88,6 @@ function buildGrid(days: CalendarDay[], daysBack: number) {
   if (week.length) weeks.push(week);
   return weeks;
 }
-
-// ── Month labels ──────────────────────────────────────────────────────────────
 
 function buildMonthLabels(weeks: { date: string }[][]) {
   const labels: { label: string; colStart: number }[] = [];
@@ -109,21 +113,30 @@ export function HeatmapView({ onSelectDate }: HeatmapViewProps) {
   const [metric, setMetric] = useState<HeatMetric>('overall');
   const { data = [], isLoading } = useCalendarHeatmap(91);
 
-  const weeks = useMemo(() => buildGrid(data, 91), [data]);
+  const weeks       = useMemo(() => buildGrid(data, 91), [data]);
   const monthLabels = useMemo(() => buildMonthLabels(weeks), [weeks]);
+
+  const totalActive = useMemo(() => {
+    return data.filter((d) => {
+      if (metric === 'habits')  return d.habitsCompleted > 0;
+      if (metric === 'journal') return d.journalWritten;
+      if (metric === 'tasks')   return d.tasksCompleted > 0;
+      return d.habitsCompleted > 0 || d.journalWritten || d.tasksCompleted > 0;
+    }).length;
+  }, [data, metric]);
 
   if (isLoading) {
     return (
       <div className="space-y-3">
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           {METRICS.map((m) => <Skeleton key={m.key} className="h-7 w-16 rounded-full" />)}
         </div>
-        <Skeleton className="h-24 w-full rounded-xl" />
+        <Skeleton className="h-28 w-full rounded-xl" />
       </div>
     );
   }
 
-  const metricColor = METRICS.find((m) => m.key === metric)?.color ?? 'bg-emerald-500';
+  const activeMetric = METRICS.find((m) => m.key === metric)!;
 
   return (
     <div className="space-y-4">
@@ -135,17 +148,22 @@ export function HeatmapView({ onSelectDate }: HeatmapViewProps) {
             type="button"
             onClick={() => setMetric(m.key)}
             className={cn(
-              'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all',
+              'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all duration-150',
               metric === m.key
-                ? 'bg-foreground text-background'
+                ? m.activeClass
                 : 'bg-muted text-muted-foreground hover:text-foreground',
             )}
           >
-            <span className={cn('h-2 w-2 rounded-full', m.color)} />
+            <span className={cn('h-2 w-2 rounded-full', metric === m.key ? 'bg-white/70' : m.dotClass)} />
             {m.label}
           </button>
         ))}
       </div>
+
+      {/* Summary */}
+      <p className="text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">{totalActive}</span> active days in the last 91 days
+      </p>
 
       {/* Grid */}
       <div className="overflow-x-auto scrollbar-thin pb-2">
@@ -153,13 +171,13 @@ export function HeatmapView({ onSelectDate }: HeatmapViewProps) {
           {/* Month labels */}
           <div
             className="grid mb-1"
-            style={{ gridTemplateColumns: `20px repeat(${weeks.length}, 1fr)`, gap: '2px' }}
+            style={{ gridTemplateColumns: `24px repeat(${weeks.length}, 1fr)`, gap: '3px' }}
           >
             <div />
             {monthLabels.map((ml) => (
               <div
                 key={`${ml.label}-${ml.colStart}`}
-                className="text-[10px] text-muted-foreground font-medium"
+                className="text-[10px] text-muted-foreground font-semibold"
                 style={{ gridColumnStart: ml.colStart + 1 }}
               >
                 {ml.label}
@@ -170,34 +188,51 @@ export function HeatmapView({ onSelectDate }: HeatmapViewProps) {
           {/* Heatmap + day labels */}
           <div className="flex gap-0.5">
             {/* Day labels */}
-            <div className="flex flex-col gap-0.5 mr-1">
+            <div className="flex flex-col gap-[3px] mr-1">
               {DAY_ABBRS.map((abbr, i) => (
-                <div key={i} className="h-[10px] w-[20px] flex items-center">
-                  <span className="text-[9px] text-muted-foreground">{abbr}</span>
+                <div key={i} className="h-[14px] w-[24px] flex items-center">
+                  <span className="text-[9px] text-muted-foreground leading-none">{abbr}</span>
                 </div>
               ))}
             </div>
 
             {/* Weeks */}
-            <div className="flex gap-0.5">
+            <div className="flex gap-[3px]">
               {weeks.map((week, wi) => (
-                <div key={wi} className="flex flex-col gap-0.5">
-                  {week.map((cell, di) => (
-                    <button
-                      key={`${wi}-${di}`}
-                      type="button"
-                      title={cell.tooEarly ? '' : `${cell.date}${cell.day ? ` · ${cell.day.habitsCompleted}/${cell.day.habitsScheduled} habits` : ''}`}
-                      onClick={() => {
-                        if (!cell.tooEarly && onSelectDate) {
-                          onSelectDate(parseISO(cell.date));
-                        }
-                      }}
-                      className={cn(
-                        'h-[10px] w-[10px] rounded-[2px] transition-transform hover:scale-125',
-                        cellColor(cell.day, metric, cell.tooEarly),
-                      )}
-                    />
-                  ))}
+                <div key={wi} className="flex flex-col gap-[3px]">
+                  {week.map((cell, di) => {
+                    const tipParts: string[] = [cell.date];
+                    if (!cell.tooEarly && cell.day) {
+                      if (metric === 'habits' || metric === 'overall') {
+                        tipParts.push(`${cell.day.habitsCompleted}/${cell.day.habitsScheduled} habits`);
+                      }
+                      if (metric === 'journal' || metric === 'overall') {
+                        if (cell.day.journalWritten) tipParts.push('journal ✓');
+                      }
+                      if (metric === 'tasks' || metric === 'overall') {
+                        if (cell.day.tasksCompleted > 0) tipParts.push(`${cell.day.tasksCompleted} tasks`);
+                      }
+                    }
+                    return (
+                      <button
+                        key={`${wi}-${di}`}
+                        type="button"
+                        title={cell.tooEarly ? '' : tipParts.join(' · ')}
+                        aria-label={cell.tooEarly ? '' : tipParts.join(', ')}
+                        onClick={() => {
+                          if (!cell.tooEarly && onSelectDate) {
+                            onSelectDate(parseISO(cell.date));
+                          }
+                        }}
+                        className={cn(
+                          'h-[14px] w-[14px] rounded-[3px] transition-all duration-100',
+                          'hover:scale-125 hover:brightness-110',
+                          cell.tooEarly ? 'cursor-default' : 'cursor-pointer',
+                          cellColorClass(cell.day, metric, cell.tooEarly),
+                        )}
+                      />
+                    );
+                  })}
                 </div>
               ))}
             </div>
@@ -208,10 +243,19 @@ export function HeatmapView({ onSelectDate }: HeatmapViewProps) {
       {/* Legend */}
       <div className="flex items-center gap-2">
         <span className="text-[10px] text-muted-foreground">Less</span>
-        {['bg-muted/40', 'bg-opacity-40', 'bg-opacity-60', 'bg-opacity-80', ''].map((_, i) => {
-          const intensities = ['bg-muted/40', `${metricColor}/30`, `${metricColor}/60`, metricColor, metricColor];
+        {[0, 1, 2, 3, 4].map((i) => {
+          const scales: Record<HeatMetric, string[]> = {
+            habits:  HABIT_SCALE,
+            journal: [...JOURNAL_SCALE, ...JOURNAL_SCALE, ...JOURNAL_SCALE],
+            tasks:   [...TASKS_SCALE, ...TASKS_SCALE],
+            overall: OVERALL_SCALE,
+          };
+          const scale = scales[metric];
           return (
-            <span key={i} className={cn('h-[10px] w-[10px] rounded-[2px]', intensities[i])} />
+            <span
+              key={i}
+              className={cn('h-[14px] w-[14px] rounded-[3px]', scale[Math.min(i, scale.length - 1)])}
+            />
           );
         })}
         <span className="text-[10px] text-muted-foreground">More</span>

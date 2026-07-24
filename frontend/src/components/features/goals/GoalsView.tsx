@@ -131,7 +131,7 @@ function CreateGoalSheet({ open, onClose }: CreateGoalSheetProps) {
   return (
     <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-md gap-0 p-0 flex flex-col">
-        <SheetHeader className="p-5 pb-4 border-b border-border shrink-0">
+        <SheetHeader className="px-5 pt-safe-or-5 pb-4 border-b border-border shrink-0">
           <SheetTitle>New Goal</SheetTitle>
           <SheetDescription>
             Set a meaningful goal and break it into milestones.
@@ -169,14 +169,14 @@ function CreateGoalSheet({ open, onClose }: CreateGoalSheetProps) {
 
             {/* Category */}
             <div className="space-y-1.5">
-              <Label>
+              <Label htmlFor="goal-category">
                 Category <span className="text-destructive">*</span>
               </Label>
               <Select
                 value={watchedCategory}
                 onValueChange={(v) => setValue('category', v, { shouldValidate: true })}
               >
-                <SelectTrigger aria-invalid={!!errors.category}>
+                <SelectTrigger id="goal-category" aria-invalid={!!errors.category}>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
