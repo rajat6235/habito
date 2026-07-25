@@ -40,7 +40,7 @@ function InsightCard({ icon, label, value, sub, color }: InsightCardProps) {
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[11px] text-muted-foreground truncate">{label}</p>
+        <p className="text-[11px] text-muted-foreground">{label}</p>
         <p className="text-base font-bold tabular-nums leading-tight">{value}</p>
         {sub && <p className="text-[10px] text-muted-foreground/60 mt-px">{sub}</p>}
       </div>

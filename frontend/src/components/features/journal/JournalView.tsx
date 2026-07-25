@@ -26,7 +26,7 @@ const MOOD_DATA = [
   { emoji: '🚀', label: 'Unstoppable'},
 ] as const;
 
-function MoodPicker({ label, value, onChange }: { label: string; value: number | null; onChange: (v: number) => void }) {
+function MoodPicker({ label, value, onChange, helperText = 'Select your mood' }: { label: string; value: number | null; onChange: (v: number) => void; helperText?: string }) {
   const selected = value != null ? MOOD_DATA[value - 1] : null;
   return (
     <div className="space-y-2.5">
@@ -43,7 +43,7 @@ function MoodPicker({ label, value, onChange }: { label: string; value: number |
           <button
             key={i}
             type="button"
-            aria-label={`Mood: ${m.label} (${i + 1}/10)`}
+            aria-label={`${label}: ${m.label} (${i + 1}/10)`}
             aria-pressed={value === i + 1}
             onClick={() => onChange(i + 1)}
             className={cn(
@@ -58,7 +58,7 @@ function MoodPicker({ label, value, onChange }: { label: string; value: number |
         ))}
       </div>
       {!value && (
-        <p className="text-[11px] text-muted-foreground/60 text-center">Select your mood</p>
+        <p className="text-[11px] text-muted-foreground/60 text-center">{helperText}</p>
       )}
     </div>
   );
@@ -66,19 +66,25 @@ function MoodPicker({ label, value, onChange }: { label: string; value: number |
 
 // ── Gratitude / Wins list ─────────────────────────────────────────────────────
 
-function ListField({ label, items, onChange, placeholder }: {
+function ListField({ label, items, onChange, placeholder, minRows = 1 }: {
   label: string;
   items: string[];
   onChange: (items: string[]) => void;
   placeholder: string;
+  minRows?: number;
 }) {
   function update(idx: number, val: string) {
-    const next = [...items];
-    next[idx] = val;
-    onChange(next.filter((_, i) => i !== next.length - 1 || val !== ''));
+    const padded = Array.from({ length: Math.max(items.length, idx + 1) }, (_, i) => items[i] ?? '');
+    padded[idx] = val;
+    let end = padded.length;
+    while (end > 0 && padded[end - 1] === '') end--;
+    onChange(padded.slice(0, end));
   }
 
-  const display = [...items, ''];
+  const base = [...items, ''];
+  const display = base.length < minRows
+    ? [...items, ...Array<string>(minRows - items.length).fill('')]
+    : base;
 
   return (
     <div className="space-y-1.5">
@@ -144,14 +150,15 @@ function MorningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
 
   return (
     <div className="space-y-6">
-      <MoodPicker label="How are you feeling? 🌅" value={mood} onChange={setMood} />
-      <MoodPicker label="Energy level ⚡" value={energy} onChange={setEnergy} />
-      <MoodPicker label="Sleep quality 💤" value={sleep} onChange={setSleep} />
+      <MoodPicker label="How are you feeling? 🌅" value={mood} onChange={setMood} helperText="Select your mood" />
+      <MoodPicker label="Energy level ⚡" value={energy} onChange={setEnergy} helperText="Select energy level" />
+      <MoodPicker label="Sleep quality 💤" value={sleep} onChange={setSleep} helperText="Select sleep quality" />
       <ListField
         label="Gratitude (3 things you're grateful for)"
         items={gratitude}
         onChange={setGratitude}
         placeholder="I'm grateful for…"
+        minRows={3}
       />
       <div className="space-y-1.5">
         <label htmlFor="morning-intention" className="text-sm font-medium">Today's intention</label>
@@ -214,7 +221,7 @@ function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
 
   return (
     <div className="space-y-6">
-      <MoodPicker label="How did you feel today? 🌙" value={mood} onChange={setMood} />
+      <MoodPicker label="How did you feel today? 🌙" value={mood} onChange={setMood} helperText="Select your mood" />
       <div className="space-y-2">
         <p className="text-sm font-medium">Day rating</p>
         <div className="flex gap-2" role="group" aria-label="Day rating 1 to 5">
@@ -235,7 +242,7 @@ function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
           ))}
         </div>
       </div>
-      <MoodPicker label="Stress level 😤" value={stress} onChange={setStress} />
+      <MoodPicker label="Stress level 😤" value={stress} onChange={setStress} helperText="Select stress level" />
       <ListField
         label="Today's wins 🏆"
         items={wins}

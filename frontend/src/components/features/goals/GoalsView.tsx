@@ -1,18 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import {
   Target, Plus, ChevronDown, ChevronUp, Check, Trash2, Calendar,
-  Flag, Loader2,
+  Flag, Loader2, PenLine,
 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 
 import {
-  useGoals, useCreateGoal, useDeleteGoal,
+  useGoals, useCreateGoal, useDeleteGoal, useUpdateGoal,
   useCreateMilestone, useCompleteMilestone, useDeleteMilestone,
 } from '@/hooks/api/useGoals';
 import type { Goal, Milestone } from '@/lib/api/goals.api';
@@ -284,6 +284,170 @@ function CreateGoalSheet({ open, onClose }: CreateGoalSheetProps) {
   );
 }
 
+// ── Edit Goal Sheet ───────────────────────────────────────────────────────────
+
+interface EditGoalSheetProps {
+  goal:    Goal | null;
+  onClose: () => void;
+}
+
+function EditGoalSheet({ goal, onClose }: EditGoalSheetProps) {
+  const updateGoal = useUpdateGoal(goal?.id ?? '');
+
+  const {
+    register, handleSubmit, reset, setValue, watch,
+    formState: { errors },
+  } = useForm<CreateGoalForm>({ resolver: zodResolver(createGoalSchema) });
+
+  const watchedCategory = watch('category');
+  const watchedGoalType = watch('goalType');
+
+  useEffect(() => {
+    if (goal) {
+      reset({
+        title:       goal.title,
+        description: goal.description ?? '',
+        category:    goal.category,
+        goalType:    goal.goalType,
+        targetDate:  goal.targetDate ? goal.targetDate.slice(0, 10) : '',
+        targetValue: goal.targetValue ?? undefined,
+        unit:        goal.unit ?? '',
+      });
+    }
+  }, [goal, reset]);
+
+  async function onSubmit(values: CreateGoalForm) {
+    await updateGoal.mutateAsync({
+      title:       values.title,
+      description: values.description || undefined,
+      category:    values.category,
+      goalType:    values.goalType,
+      targetValue: values.targetValue,
+      unit:        values.unit || undefined,
+      targetDate:  values.targetDate || undefined,
+    });
+    onClose();
+  }
+
+  return (
+    <Sheet open={goal !== null} onOpenChange={(o) => !o && onClose()}>
+      <SheetContent side="right" className="w-full sm:max-w-md gap-0 p-0 flex flex-col">
+        <SheetHeader className="px-5 pt-safe-or-5 pb-4 border-b border-border shrink-0">
+          <SheetTitle>Edit Goal</SheetTitle>
+          <SheetDescription>Update your goal details.</SheetDescription>
+        </SheetHeader>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-goal-title">
+                Title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-goal-title"
+                placeholder="e.g. Run a 5K"
+                aria-invalid={!!errors.title}
+                {...register('title')}
+              />
+              {errors.title && (
+                <p className="text-xs text-destructive">{errors.title.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-goal-desc">Description</Label>
+              <Textarea
+                id="edit-goal-desc"
+                placeholder="Why does this goal matter to you?"
+                rows={3}
+                {...register('description')}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-goal-category">
+                Category <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={watchedCategory}
+                onValueChange={(v) => setValue('category', v, { shouldValidate: true })}
+              >
+                <SelectTrigger id="edit-goal-category" aria-invalid={!!errors.category}>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GOAL_CATEGORIES.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.category && (
+                <p className="text-xs text-destructive">{errors.category.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-goal-type">
+                Goal type <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={watchedGoalType}
+                onValueChange={(v) => setValue('goalType', v as CreateGoalForm['goalType'], { shouldValidate: true })}
+              >
+                <SelectTrigger id="edit-goal-type" aria-invalid={!!errors.goalType}>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GOAL_TYPES.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.goalType && (
+                <p className="text-xs text-destructive">{errors.goalType.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-goal-date">Target date</Label>
+              <Input id="edit-goal-date" type="date" {...register('targetDate')} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-goal-value">Target value</Label>
+                <Input
+                  id="edit-goal-value"
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 10"
+                  {...register('targetValue')}
+                />
+                {errors.targetValue && (
+                  <p className="text-xs text-destructive">{errors.targetValue.message}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-goal-unit">Unit</Label>
+                <Input id="edit-goal-unit" placeholder="e.g. km, hours" {...register('unit')} />
+              </div>
+            </div>
+          </div>
+
+          <div className="p-5 pt-4 border-t border-border shrink-0 flex gap-3">
+            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" loading={updateGoal.isPending}>
+              Save Changes
+            </Button>
+          </div>
+        </form>
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 // ── Milestone Item ────────────────────────────────────────────────────────────
 
 interface MilestoneItemProps {
@@ -346,7 +510,8 @@ interface GoalCardProps {
 }
 
 function GoalCard({ goal }: GoalCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded]   = useState(false);
+  const [editing, setEditing]     = useState(false);
   const [newMilestone, setNewMilestone] = useState('');
   const deleteGoal      = useDeleteGoal();
   const createMilestone = useCreateMilestone(goal.id);
@@ -377,7 +542,7 @@ function GoalCard({ goal }: GoalCardProps) {
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="font-semibold text-sm truncate">{goal.title}</span>
                 <Badge className={cn('text-xs px-1.5 py-0', categoryColor(goal.category))}>
-                  {goal.category}
+                  {goal.category.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
                 </Badge>
                 {goal.status === 'completed' && (
                   <Badge className="text-xs px-1.5 py-0 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
@@ -482,21 +647,33 @@ function GoalCard({ goal }: GoalCardProps) {
                   </Button>
                 </div>
 
-                {/* Delete goal */}
-                <button
-                  type="button"
-                  onClick={() => deleteGoal.mutate(goal.id)}
-                  disabled={deleteGoal.isPending}
-                  className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                  Delete goal
-                </button>
+                {/* Actions row */}
+                <div className="mt-3 flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditing(true)}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <PenLine className="h-3.5 w-3.5" />
+                    Edit goal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteGoal.mutate(goal.id)}
+                    disabled={deleteGoal.isPending}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    Delete goal
+                  </button>
+                </div>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
       </div>
+
+      <EditGoalSheet goal={editing ? goal : null} onClose={() => setEditing(false)} />
     </motion.div>
   );
 }
@@ -527,7 +704,7 @@ export function GoalsView() {
             <h1 className="text-2xl font-bold tracking-tight">Your ambitions</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {goals.length > 0
-                ? `${goals.filter((g) => g.status === 'in_progress').length} active · ${goals.filter((g) => g.status === 'completed').length} completed`
+                ? `${goals.filter((g) => g.status === 'in_progress' || g.status === 'not_started').length} active · ${goals.filter((g) => g.status === 'completed').length} completed`
                 : 'Set a goal and break it into milestones.'}
             </p>
           </div>

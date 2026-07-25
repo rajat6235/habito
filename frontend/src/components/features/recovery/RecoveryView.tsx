@@ -88,8 +88,12 @@ function GoalCard({ goal, onRelapseClick }: { goal: RecoveryGoal; onRelapseClick
 
       <div className="grid grid-cols-2 gap-3">
         <div className="text-center p-3 rounded-xl bg-muted/50 border border-border">
-          <p className="text-2xl font-bold tabular-nums">{goal.currentStreakDays}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Current streak (days)</p>
+          <p className="text-2xl font-bold tabular-nums">
+            {goal.currentStreakDays > 0 ? goal.currentStreakDays : '< 1'}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {goal.currentStreakDays > 0 ? 'Current streak (days)' : 'Current streak'}
+          </p>
         </div>
         <div className="text-center p-3 rounded-xl bg-muted/50 border border-border">
           <p className="text-2xl font-bold tabular-nums">{goal.longestStreakDays}</p>
@@ -314,8 +318,8 @@ export function RecoveryView() {
             <h1 className="text-2xl font-bold tracking-tight">Your journey</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
               {goals.length > 0 && goals.some((g) => g.status === 'active')
-                ? 'Every moment sober is a victory.'
-                : 'Start tracking your sobriety streak.'}
+                ? 'Every moment of progress is a victory.'
+                : 'Start tracking your streak.'}
             </p>
           </div>
           <Button onClick={() => setShowCreate(true)} size="sm" className="shrink-0">
@@ -334,7 +338,7 @@ export function RecoveryView() {
             <EmptyState
               icon={<Shield />}
               title="No recovery goals yet"
-              description="Start tracking your sobriety journey. Every moment sober is a victory."
+              description="Start tracking your journey. Every step forward counts."
               action={{ label: 'Add first goal', onClick: () => setShowCreate(true), icon: <Plus /> }}
               className="py-16 rounded-2xl border border-border bg-muted/20"
             />

@@ -84,7 +84,7 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
   const open = Boolean(date);
 
   // All data hooks — enabled only when panel is open
-  const { data: habitsRaw = [], isLoading: habitsLoading } = useTodayHabits(date ?? undefined);
+  const { data: habitsRaw = [], isLoading: habitsLoading, isError: habitsError } = useTodayHabits(date ?? undefined);
   const habits = habitsRaw as HabitWithTodayLog[];
   const { data: journal = [], isLoading: journalLoading } = useJournalByDate(date ?? undefined);
   const { data: tasks   = [], isLoading: tasksLoading   } = usePlannerTasks(
@@ -164,12 +164,15 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
             <div className="flex-1 min-w-0">
               <SheetTitle className="text-base leading-tight">{dateLabel}</SheetTitle>
               <SheetDescription className="flex items-center gap-2 mt-0.5">
-                {!isLoading && completedHabits > 0 && (
+                {!isLoading && !habitsError && completedHabits > 0 && (
                   <span className="text-xs">
                     {completedHabits}/{habits.length} habits done
                   </span>
                 )}
-                {!isLoading && habits.length === 0 && (
+                {!isLoading && habitsError && (
+                  <span className="text-xs text-destructive/70">Habits unavailable</span>
+                )}
+                {!isLoading && !habitsError && habits.length === 0 && (
                   <span className="text-xs text-muted-foreground/60">No habits scheduled</span>
                 )}
               </SheetDescription>
@@ -413,7 +416,7 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{g.name}</p>
                               <p className="text-xs text-muted-foreground">
-                                {streakOnDate > 0 ? `Day ${streakOnDate}` : 'Day 0'}
+                                {streakOnDate > 0 ? `Day ${streakOnDate}` : '< 1 day'}
                               </p>
                             </div>
                             {streakOnDate >= 1 && (

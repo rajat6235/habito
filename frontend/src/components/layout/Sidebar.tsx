@@ -73,31 +73,34 @@ function SidebarLink({
 }) {
   const Icon = item.icon;
 
-  const link = (
-    <Link
-      href={item.href}
-      className={cn(
-        'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
-        'transition-all duration-150 outline-none',
-        'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
-        active
-          ? 'bg-primary/10 text-primary'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-        collapsed && 'justify-center px-0',
-      )}
-    >
+  const sharedClass = cn(
+    'relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium',
+    'transition-all duration-150 outline-none',
+    item.soon
+      ? 'text-muted-foreground/50 cursor-not-allowed'
+      : [
+          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+          active
+            ? 'bg-primary/10 text-primary'
+            : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+        ],
+    collapsed && 'justify-center px-0',
+  );
+
+  const inner = (
+    <>
       <span
         aria-hidden
         className={cn(
           'absolute left-0 top-2 bottom-2 w-[2px] rounded-r-full bg-primary',
           'transition-opacity duration-150',
-          active ? 'opacity-100' : 'opacity-0',
+          active && !item.soon ? 'opacity-100' : 'opacity-0',
         )}
       />
       <Icon
         className={cn(
           'h-[18px] w-[18px] shrink-0 transition-colors',
-          active ? 'text-primary' : 'text-current',
+          active && !item.soon ? 'text-primary' : 'text-current',
         )}
       />
       <AnimatePresence initial={false}>
@@ -118,10 +121,33 @@ function SidebarLink({
           </motion.span>
         )}
       </AnimatePresence>
+    </>
+  );
+
+  const link = item.soon ? (
+    <div className={sharedClass} aria-disabled="true">
+      {inner}
+    </div>
+  ) : (
+    <Link href={item.href} className={sharedClass}>
+      {inner}
     </Link>
   );
 
   if (!collapsed) return link;
+
+  if (item.soon) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span className="block">{link}</span>
+        </TooltipTrigger>
+        <TooltipContent side="right" sideOffset={8}>
+          {item.label} — coming soon
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
 
   return (
     <Tooltip>

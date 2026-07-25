@@ -5,8 +5,18 @@ export const createHabitSchema = z.object({
   description: z.string().max(500).optional(),
   categoryId:  z.string().optional(),
   icon:        z.string().max(8).optional(),
-  color:       z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid colour').optional(),
-  timesPerDay: z.coerce.number().int().min(1).max(20).default(1),
+  color:       z.preprocess(
+    (v) => (typeof v === 'string' && v === '' ? undefined : v),
+    z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid colour').optional(),
+  ),
+  timesPerDay: z.preprocess(
+    (v) => {
+      if (v === '' || v === undefined || v === null) return 1;
+      const n = Number(v);
+      return Number.isNaN(n) ? 1 : n;
+    },
+    z.number().int().min(1).max(20),
+  ),
 });
 
 export const logHabitSchema = z.object({

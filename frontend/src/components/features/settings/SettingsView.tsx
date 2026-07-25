@@ -201,6 +201,9 @@ function ProfileTab() {
             <SelectValue placeholder="Select timezone" />
           </SelectTrigger>
           <SelectContent>
+            {!TIMEZONES.some((tz) => tz.value === watchedTimezone) && watchedTimezone && (
+              <SelectItem value={watchedTimezone}>{watchedTimezone}</SelectItem>
+            )}
             {TIMEZONES.map(({ value, label }) => (
               <SelectItem key={value} value={value}>
                 {label}
@@ -352,6 +355,19 @@ function SecurityTab() {
   );
 }
 
+// ── Device parser ─────────────────────────────────────────────────────────────
+
+function parseDevice(ua: string | null | undefined): string {
+  if (!ua) return 'Unknown device';
+  if (/iPhone/i.test(ua))    return 'iPhone';
+  if (/iPad/i.test(ua))      return 'iPad';
+  if (/Android/i.test(ua))   return 'Android device';
+  if (/Macintosh/i.test(ua)) return 'Mac';
+  if (/Windows/i.test(ua))   return 'Windows PC';
+  if (/Linux/i.test(ua))     return 'Linux';
+  return 'Unknown device';
+}
+
 // ── Sessions Tab ──────────────────────────────────────────────────────────────
 
 function SessionsTab() {
@@ -414,7 +430,7 @@ function SessionsTab() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-medium truncate">
-                    {session.deviceName ?? 'Unknown device'}
+                    {session.deviceName ?? parseDevice(session.userAgent)}
                   </p>
                   {session.isCurrent && (
                     <Badge className="text-xs px-1.5 py-0 bg-primary/15 text-primary">
@@ -422,11 +438,6 @@ function SessionsTab() {
                     </Badge>
                   )}
                 </div>
-                {session.userAgent && (
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {session.userAgent}
-                  </p>
-                )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {session.ipAddress && (
                     <span className="text-xs text-muted-foreground">{session.ipAddress}</span>

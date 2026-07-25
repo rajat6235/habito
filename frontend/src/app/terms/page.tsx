@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-export const metadata: Metadata = { title: 'Terms of Service · Habito' };
+export const metadata: Metadata = { title: 'Terms of Service' };
 
 export default function TermsPage() {
   return (

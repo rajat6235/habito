@@ -32,15 +32,15 @@ const PRIORITY_STYLES: Record<PlannerTask['priority'], string> = {
 };
 
 const TIME_BLOCKS = ['Morning', 'Afternoon', 'Evening'] as const;
-type TimeBlock = (typeof TIME_BLOCKS)[number] | 'No block';
+type TimeBlock = (typeof TIME_BLOCKS)[number] | 'Unscheduled';
 
 function getTimeBlock(task: PlannerTask): TimeBlock {
-  if (!task.timeBlock) return 'No block';
+  if (!task.timeBlock) return 'Unscheduled';
   const b = task.timeBlock.toLowerCase();
   if (b === 'morning')   return 'Morning';
   if (b === 'afternoon') return 'Afternoon';
   if (b === 'evening')   return 'Evening';
-  return 'No block';
+  return 'Unscheduled';
 }
 
 // ── Task Item ─────────────────────────────────────────────────────────────────
@@ -194,7 +194,7 @@ interface TimeBlockGroupProps {
 }
 
 function TimeBlockGroup({ label, tasks, dateStr }: TimeBlockGroupProps) {
-  const timeBlockParam = label === 'No block' ? undefined : label.toLowerCase();
+  const timeBlockParam = label === 'Unscheduled' ? 'morning' : label.toLowerCase();
 
   return (
     <div className="space-y-1">
@@ -268,7 +268,7 @@ export function PlannerView() {
     Morning:   [],
     Afternoon: [],
     Evening:   [],
-    'No block': [],
+    'Unscheduled': [],
   };
 
   for (const task of tasks) {
@@ -277,7 +277,7 @@ export function PlannerView() {
   }
 
   // Sort each group by order
-  const ALL_BLOCKS: TimeBlock[] = ['Morning', 'Afternoon', 'Evening', 'No block'];
+  const ALL_BLOCKS: TimeBlock[] = ['Morning', 'Afternoon', 'Evening', 'Unscheduled'];
   for (const block of ALL_BLOCKS) {
     grouped[block].sort((a, b) => a.order - b.order);
   }

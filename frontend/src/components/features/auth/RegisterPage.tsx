@@ -19,8 +19,8 @@ const passwordSchema = z.string()
   .regex(/[0-9]/, 'One number');
 
 const registerSchema = z.object({
-  firstName: z.string().min(1, 'Required'),
-  lastName:  z.string().min(1, 'Required'),
+  firstName: z.string().trim().min(1, 'Required'),
+  lastName:  z.string().trim().min(1, 'Required'),
   username:  z.string().min(3, 'At least 3 characters').max(30).regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
   email:     z.string().email('Enter a valid email'),
   password:  passwordSchema,

@@ -12,6 +12,7 @@ export interface Goal {
   title:         string;
   description?:  string;
   category:      string;
+  goalType?:     'short_term' | 'medium_term' | 'long_term';
   targetValue?:  number;
   currentValue?: number;
   unit?:         string;

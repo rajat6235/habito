@@ -69,7 +69,7 @@ function cellColorClass(day: CalendarDay | undefined, metric: HeatMetric, tooEar
 function buildGrid(days: CalendarDay[], daysBack: number) {
   const today    = new Date();
   today.setHours(0, 0, 0, 0);
-  const dayMap   = new Map(days.map((d) => [d.date, d]));
+  const dayMap   = new Map(days.map((d) => [d.date.slice(0, 10), d]));
   const earliest = subDays(today, daysBack - 1);
   const offset   = earliest.getDay();
   const startDate = subDays(earliest, offset);
