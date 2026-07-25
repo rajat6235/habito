@@ -151,30 +151,42 @@ export class HabitRepository extends BaseRepository {
   }
 
   async getTodayHabits(userId: string, today: Date) {
-    return this.db.habit.findMany({
-      where: { userId, deletedAt: null, isArchived: false, startDate: { lte: today } },
-      select: {
-        id:               true,
-        title:            true,
-        description:      true,
-        icon:             true,
-        color:            true,
-        frequencyType:    true,
-        frequencyConfig:  true,
-        priority:         true,
-        isArchived:       true,
-        currentStreak:    true,
-        longestStreak:    true,
-        totalCompletions: true,
-        lastCompletedDate: true,
-        startDate:        true,
-        categoryId:       true,
-        createdAt:        true,
-        category:         true,
-        customFields:     true,
-        logs: { where: { logDate: today } },
-      },
-      orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
-    });
+    // Fetch habits and today's logs in separate queries to avoid Prisma LATERAL JOIN
+    // issues that occur with nested relation filters on @db.Date columns.
+    const [habits, logs] = await Promise.all([
+      this.db.habit.findMany({
+        where: { userId, deletedAt: null, isArchived: false, startDate: { lte: today } },
+        select: {
+          id:               true,
+          title:            true,
+          description:      true,
+          icon:             true,
+          color:            true,
+          frequencyType:    true,
+          frequencyConfig:  true,
+          priority:         true,
+          isArchived:       true,
+          currentStreak:    true,
+          longestStreak:    true,
+          totalCompletions: true,
+          lastCompletedDate: true,
+          startDate:        true,
+          categoryId:       true,
+          createdAt:        true,
+          category:         true,
+          customFields:     true,
+        },
+        orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
+      }),
+      this.db.habitLog.findMany({
+        where: { userId, logDate: today },
+      }),
+    ]);
+
+    const logByHabitId = new Map(logs.map((l) => [l.habitId, l]));
+    return habits.map((h) => ({
+      ...h,
+      logs: logByHabitId.has(h.id) ? [logByHabitId.get(h.id)!] : [],
+    }));
   }
 }
