@@ -44,10 +44,14 @@ export function HabitCard({
   const isMultiple  = timesPerDay > 1;
   const isFullyDone = isMultiple ? countToday >= timesPerDay : completed;
 
+  const hasCustomFields = Array.isArray(habit.customFields) && (habit.customFields as unknown[]).length > 0;
+
   function handleCircleClick(e: React.MouseEvent) {
     e.stopPropagation();
     if (loading) return;
-    if (isMultiple && onLog) {
+    // Open the log modal when: multiple-completion habit, OR single habit with custom
+    // fields that hasn't been completed yet (so user can fill in the fields first).
+    if ((isMultiple || (!completed && hasCustomFields)) && onLog) {
       onLog(habit);
     } else {
       onCheck?.(habit, !completed);
