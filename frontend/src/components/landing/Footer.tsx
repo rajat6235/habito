@@ -5,28 +5,28 @@ const footerLinks = [
   {
     heading: 'Product',
     links: [
-      { label: 'Features',  href: '#features'   },
-      { label: 'Pricing',   href: '#pricing'     },
-      { label: 'Changelog', href: '#'            },
-      { label: 'Roadmap',   href: '#'            },
+      { label: 'Features',  href: '/#features' },
+      { label: 'Pricing',   href: '/#pricing'  },
+      { label: 'Changelog', href: '#'          },
+      { label: 'Roadmap',   href: '#'          },
     ],
   },
   {
     heading: 'Company',
     links: [
-      { label: 'About',    href: '#' },
-      { label: 'Blog',     href: '#' },
-      { label: 'Careers',  href: '#' },
-      { label: 'Press',    href: '#' },
+      { label: 'About',   href: '#' },
+      { label: 'Blog',    href: '#' },
+      { label: 'Careers', href: '#' },
+      { label: 'Press',   href: '#' },
     ],
   },
   {
     heading: 'Legal',
     links: [
-      { label: 'Privacy',  href: '#' },
-      { label: 'Terms',    href: '#' },
-      { label: 'Cookies',  href: '#' },
-      { label: 'Security', href: '#' },
+      { label: 'Privacy',  href: '/privacy' },
+      { label: 'Terms',    href: '/terms'   },
+      { label: 'Cookies',  href: '#'        },
+      { label: 'Security', href: '#'        },
     ],
   },
   {
@@ -35,7 +35,7 @@ const footerLinks = [
       { label: 'Help Center', href: '#' },
       { label: 'Discord',     href: '#' },
       { label: 'Status',      href: '#' },
-      { label: 'Contact',     href: '#' },
+      { label: 'Contact',     href: 'mailto:support@habito.app' },
     ],
   },
 ];

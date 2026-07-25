@@ -58,7 +58,7 @@ function MoodPicker({ label, value, onChange }: { label: string; value: number |
         ))}
       </div>
       {!value && (
-        <p className="text-[11px] text-muted-foreground/60 text-center">Tap to select your mood</p>
+        <p className="text-[11px] text-muted-foreground/60 text-center">Select your mood</p>
       )}
     </div>
   );
@@ -295,7 +295,7 @@ function FreeWriteForm({ entry, date, onSaved }: { entry?: JournalEntry; date: s
         placeholder="Let your thoughts flow…"
         className="min-h-[300px] resize-none text-base leading-relaxed"
       />
-      <Button onClick={handleSave} loading={saving} className="w-full">
+      <Button onClick={handleSave} loading={saving} disabled={!content.trim() && !entry} className="w-full">
         <Save className="h-4 w-4" />
         {entry ? 'Update' : 'Save'}
       </Button>
@@ -419,6 +419,16 @@ export function JournalView() {
                     </Button>
                   </div>
                 </div>
+                {(currentEntry.moodMorning != null || currentEntry.moodEvening != null) && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">
+                      {MOOD_DATA[((currentEntry.moodMorning ?? currentEntry.moodEvening ?? 1) - 1)]?.emoji}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      {MOOD_DATA[((currentEntry.moodMorning ?? currentEntry.moodEvening ?? 1) - 1)]?.label}
+                    </span>
+                  </div>
+                )}
                 {currentEntry.content && (
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">
                     {currentEntry.content}

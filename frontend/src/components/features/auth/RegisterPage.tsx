@@ -169,10 +169,11 @@ export function RegisterPage() {
       >
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="reg-firstName">First name</Label>
+            <Label htmlFor="reg-firstName">First name <span className="text-destructive" aria-hidden>*</span></Label>
             <Input
               id="reg-firstName"
               placeholder="Jane"
+              aria-required="true"
               aria-invalid={!!errors.firstName}
               {...register('firstName')}
             />
@@ -181,10 +182,11 @@ export function RegisterPage() {
             )}
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="reg-lastName">Last name</Label>
+            <Label htmlFor="reg-lastName">Last name <span className="text-destructive" aria-hidden>*</span></Label>
             <Input
               id="reg-lastName"
               placeholder="Doe"
+              aria-required="true"
               aria-invalid={!!errors.lastName}
               {...register('lastName')}
             />
@@ -195,11 +197,12 @@ export function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="reg-username">Username</Label>
+          <Label htmlFor="reg-username">Username <span className="text-destructive" aria-hidden>*</span></Label>
           <Input
             id="reg-username"
             placeholder="your_username"
             autoComplete="username"
+            aria-required="true"
             aria-invalid={!!errors.username}
             {...register('username')}
           />
@@ -209,12 +212,13 @@ export function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="reg-email">Email</Label>
+          <Label htmlFor="reg-email">Email <span className="text-destructive" aria-hidden>*</span></Label>
           <Input
             id="reg-email"
             type="email"
             placeholder="you@example.com"
             autoComplete="email"
+            aria-required="true"
             aria-invalid={!!errors.email}
             {...register('email')}
           />
@@ -224,7 +228,7 @@ export function RegisterPage() {
         </div>
 
         <div className="space-y-1.5">
-          <Label htmlFor="reg-password">Password</Label>
+          <Label htmlFor="reg-password">Password <span className="text-destructive" aria-hidden>*</span></Label>
           <div className="relative">
             <Input
               id="reg-password"

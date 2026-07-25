@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const createHabitSchema = z.object({
-  title:       z.string().min(1, 'Name is required').max(100),
+  title:       z.string().trim().min(1, 'Name is required').max(100),
   description: z.string().max(500).optional(),
   categoryId:  z.string().optional(),
   icon:        z.string().max(8).optional(),

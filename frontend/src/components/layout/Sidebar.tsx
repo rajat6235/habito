@@ -14,9 +14,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NavItem {
-  label: string;
-  href:  string;
-  icon:  React.ComponentType<{ className?: string }>;
+  label:    string;
+  href:     string;
+  icon:     React.ComponentType<{ className?: string }>;
+  soon?:    boolean;
 }
 
 interface NavGroup {
@@ -37,14 +38,14 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Wellness',
     items: [
       { label: 'Recovery',     href: '/app/recovery',     icon: Shield },
-      { label: 'Gym',          href: '/app/gym',          icon: Dumbbell },
+      { label: 'Gym',          href: '/app/gym',          icon: Dumbbell,  soon: true },
     ],
   },
   {
     label: 'Organize',
     items: [
       { label: 'Goals',        href: '/app/goals',        icon: Target },
-      { label: 'Notes',        href: '/app/notes',        icon: StickyNote },
+      { label: 'Notes',        href: '/app/notes',        icon: StickyNote, soon: true },
       { label: 'Planner',      href: '/app/planner',      icon: Calendar },
       { label: 'Calendar',     href: '/app/calendar',     icon: CalendarDays },
     ],
@@ -52,8 +53,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Insights',
     items: [
-      { label: 'Analytics',    href: '/app/analytics',    icon: BarChart2 },
-      { label: 'Achievements', href: '/app/achievements', icon: Trophy },
+      { label: 'Analytics',    href: '/app/analytics',    icon: BarChart2,  soon: true },
+      { label: 'Achievements', href: '/app/achievements', icon: Trophy,     soon: true },
     ],
   },
 ];
@@ -106,9 +107,14 @@ function SidebarLink({
             animate={{ opacity: 1, width: 'auto' }}
             exit={{ opacity: 0, width: 0 }}
             transition={{ duration: 0.15, ease: 'easeInOut' }}
-            className="overflow-hidden whitespace-nowrap min-w-0"
+            className="overflow-hidden whitespace-nowrap min-w-0 flex items-center gap-2"
           >
             {item.label}
+            {item.soon && (
+              <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 leading-none">
+                Soon
+              </span>
+            )}
           </motion.span>
         )}
       </AnimatePresence>

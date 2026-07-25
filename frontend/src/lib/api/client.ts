@@ -66,7 +66,8 @@ apiClient.interceptors.response.use(
 
     const isTokenExpired =
       error.response?.status === 401 &&
-      error.response?.data?.error?.code === 'TOKEN_EXPIRED' &&
+      (error.response?.data?.error?.code === 'TOKEN_EXPIRED' ||
+       error.response?.data?.error?.code === 'TOKEN_INVALID') &&
       !original._retry;
 
     // Don't refresh on auth-endpoint 401s (wrong password, etc.)

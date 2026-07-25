@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
+import { useUiStore } from '@/stores/ui.store';
 import { createHabitSchema, type CreateHabitForm } from '../habits.schemas';
 import { PRESET_ICONS, PRESET_COLORS } from '../habits.constants';
 import { CustomFieldsBuilder } from './CustomFieldsBuilder';
@@ -33,6 +34,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
   const { data: categories = [] } = useHabitCategories();
   const [customFields,     setCustomFields]     = useState<CustomFieldDef[]>([]);
   const [galleryOpen,      setGalleryOpen]      = useState(false);
+  const addToast = useUiStore((s) => s.addToast);
 
   const {
     register, handleSubmit, reset, setValue, watch,
@@ -51,19 +53,24 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
       ? { type: 'custom_daily', timesPerDay }
       : { type: 'daily' };
 
-    await createHabit.mutateAsync({
-      title:           values.title,
-      description:     values.description,
-      categoryId:      values.categoryId || undefined,
-      icon:            values.icon || undefined,
-      color:           values.color || undefined,
-      frequencyConfig,
-      customFields:    customFields.length > 0 ? customFields : undefined,
-    });
-    reset();
-    setCustomFields([]);
-    setGalleryOpen(false);
-    onClose();
+    try {
+      await createHabit.mutateAsync({
+        title:           values.title.trim(),
+        description:     values.description,
+        categoryId:      values.categoryId || undefined,
+        icon:            values.icon || undefined,
+        color:           values.color || undefined,
+        frequencyConfig,
+        customFields:    customFields.length > 0 ? customFields : undefined,
+      });
+      reset();
+      setCustomFields([]);
+      setGalleryOpen(false);
+      onClose();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to create habit';
+      addToast({ title: 'Could not create habit', description: msg, variant: 'destructive', duration: 4000 });
+    }
   }
 
   const watchedIcon  = watch('icon');
@@ -89,6 +96,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
               <Input
                 id="habit-title"
                 placeholder="e.g. Morning Run"
+                maxLength={100}
                 aria-required="true"
                 aria-invalid={!!errors.title}
                 aria-describedby={errors.title ? 'habit-title-error' : undefined}
@@ -197,7 +205,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
                   <SelectContent>
                     {categories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
-                        {cat.icon && <span aria-hidden className="mr-1.5">{cat.icon}</span>}
+                        {cat.icon && !/^[a-zA-Z0-9_-]+$/.test(cat.icon) && <span aria-hidden className="mr-1.5">{cat.icon}</span>}
                         {cat.name}
                       </SelectItem>
                     ))}

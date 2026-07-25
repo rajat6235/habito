@@ -63,7 +63,7 @@ export function DashboardView() {
   const pct           = total > 0 ? Math.round((completed / total) * 100) : 0;
   const allDone       = total > 0 && completed === total;
   const maxStreak     = habits.reduce((m, h) => Math.max(m, h.currentStreak ?? 0), 0);
-  const displayName   = user?.firstName ?? user?.username ?? 'there';
+  const displayName   = user?.firstName ?? user?.username ?? null;
 
   function handleCheck(habit: Habit, checked: boolean) {
     logHabit.mutate({ id: habit.id, payload: { date: dateStr, status: checked ? 'completed' : 'skipped' } });
@@ -82,8 +82,9 @@ export function DashboardView() {
           {format(today, 'EEEE, MMMM d')}
         </p>
         <h1 className="text-[1.65rem] font-bold tracking-tight leading-tight">
-          {getGreeting()},{' '}
-          <span className="gradient-text">{displayName}</span>
+          {getGreeting()}{displayName ? (
+            <>{', '}<span className="gradient-text">{displayName}</span></>
+          ) : null}
         </h1>
         <p className="text-sm text-muted-foreground italic leading-relaxed">
           &ldquo;{getDailyQuote()}&rdquo;
@@ -158,7 +159,8 @@ export function DashboardView() {
           <EmptyState
             icon={<CheckSquare />}
             title="Couldn't load habits"
-            description="Check your connection and refresh."
+            description="Check your connection and try again."
+            action={{ label: 'Retry', onClick: () => window.location.reload() }}
             className="py-8 bg-muted/30 rounded-2xl border border-border"
           />
         )}

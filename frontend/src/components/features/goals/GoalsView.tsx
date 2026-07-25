@@ -48,13 +48,21 @@ const fadeUp = {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const GOAL_CATEGORIES = [
-  { value: 'health',       label: 'Health' },
-  { value: 'career',       label: 'Career' },
-  { value: 'finance',      label: 'Finance' },
-  { value: 'personal',     label: 'Personal' },
-  { value: 'learning',     label: 'Learning' },
-  { value: 'relationship', label: 'Relationship' },
-  { value: 'other',        label: 'Other' },
+  { value: 'health',        label: 'Health' },
+  { value: 'fitness',       label: 'Fitness' },
+  { value: 'career',        label: 'Career' },
+  { value: 'finance',       label: 'Finance' },
+  { value: 'relationships', label: 'Relationships' },
+  { value: 'learning',      label: 'Learning' },
+  { value: 'mental_health', label: 'Mental Health' },
+  { value: 'self_care',     label: 'Self Care' },
+  { value: 'other',         label: 'Other' },
+] as const;
+
+const GOAL_TYPES = [
+  { value: 'short_term',  label: 'Short-term (weeks)' },
+  { value: 'medium_term', label: 'Medium-term (months)' },
+  { value: 'long_term',   label: 'Long-term (1+ year)' },
 ] as const;
 
 type GoalCategory = (typeof GOAL_CATEGORIES)[number]['value'];
@@ -69,13 +77,15 @@ const STATUS_TABS = [
 type StatusFilter = (typeof STATUS_TABS)[number]['key'];
 
 const CATEGORY_COLORS: Record<GoalCategory, string> = {
-  health:       'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
-  career:       'bg-blue-500/15 text-blue-700 dark:text-blue-400',
-  finance:      'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-  personal:     'bg-purple-500/15 text-purple-700 dark:text-purple-400',
-  learning:     'bg-sky-500/15 text-sky-700 dark:text-sky-400',
-  relationship: 'bg-pink-500/15 text-pink-700 dark:text-pink-400',
-  other:        'bg-zinc-500/15 text-zinc-700 dark:text-zinc-400',
+  health:        'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+  fitness:       'bg-green-500/15 text-green-700 dark:text-green-400',
+  career:        'bg-blue-500/15 text-blue-700 dark:text-blue-400',
+  finance:       'bg-amber-500/15 text-amber-700 dark:text-amber-400',
+  relationships: 'bg-pink-500/15 text-pink-700 dark:text-pink-400',
+  learning:      'bg-sky-500/15 text-sky-700 dark:text-sky-400',
+  mental_health: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
+  self_care:     'bg-rose-500/15 text-rose-700 dark:text-rose-400',
+  other:         'bg-zinc-500/15 text-zinc-700 dark:text-zinc-400',
 };
 
 function categoryColor(cat: string): string {
@@ -88,6 +98,7 @@ const createGoalSchema = z.object({
   title:       z.string().min(1, 'Title is required').max(120),
   description: z.string().max(500).optional(),
   category:    z.string().min(1, 'Category is required'),
+  goalType:    z.enum(['short_term', 'medium_term', 'long_term'], { required_error: 'Goal type is required' }),
   targetDate:  z.string().optional(),
   targetValue: z.preprocess(
     (v) => (v === '' || v == null ? undefined : Number(v)),
@@ -114,12 +125,14 @@ function CreateGoalSheet({ open, onClose }: CreateGoalSheetProps) {
   } = useForm<CreateGoalForm>({ resolver: zodResolver(createGoalSchema) });
 
   const watchedCategory = watch('category');
+  const watchedGoalType = watch('goalType');
 
   async function onSubmit(values: CreateGoalForm) {
     await createGoal.mutateAsync({
       title:       values.title,
       description: values.description || undefined,
       category:    values.category,
+      goalType:    values.goalType,
       targetValue: values.targetValue,
       unit:        values.unit || undefined,
       targetDate:  values.targetDate || undefined,
@@ -189,6 +202,31 @@ function CreateGoalSheet({ open, onClose }: CreateGoalSheetProps) {
               </Select>
               {errors.category && (
                 <p className="text-xs text-destructive">{errors.category.message}</p>
+              )}
+            </div>
+
+            {/* Goal type */}
+            <div className="space-y-1.5">
+              <Label htmlFor="goal-type">
+                Goal type <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={watchedGoalType}
+                onValueChange={(v) => setValue('goalType', v as CreateGoalForm['goalType'], { shouldValidate: true })}
+              >
+                <SelectTrigger id="goal-type" aria-invalid={!!errors.goalType}>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {GOAL_TYPES.map(({ value, label }) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.goalType && (
+                <p className="text-xs text-destructive">{errors.goalType.message}</p>
               )}
             </div>
 

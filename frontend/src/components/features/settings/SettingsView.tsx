@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -91,7 +91,7 @@ function ProfileTab() {
   const displayUser   = me ?? authUser;
 
   const {
-    register, handleSubmit, setValue, watch,
+    register, handleSubmit, setValue, watch, reset,
     formState: { errors, isDirty },
   } = useForm<ProfileForm>({
     resolver:      zodResolver(profileSchema),
@@ -102,6 +102,17 @@ function ProfileTab() {
       timezone:  displayUser?.timezone ?? 'America/New_York',
     },
   });
+
+  useEffect(() => {
+    if (me) {
+      reset({
+        firstName: me.firstName ?? '',
+        lastName:  me.lastName ?? '',
+        bio:       me.bio ?? '',
+        timezone:  me.timezone ?? 'America/New_York',
+      });
+    }
+  }, [me, reset]);
 
   const watchedTimezone = watch('timezone');
 

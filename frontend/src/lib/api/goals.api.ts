@@ -26,6 +26,7 @@ export interface CreateGoalPayload {
   title:        string;
   description?: string;
   category:     string;
+  goalType:     'short_term' | 'medium_term' | 'long_term';
   targetValue?: number;
   unit?:        string;
   targetDate?:  string;

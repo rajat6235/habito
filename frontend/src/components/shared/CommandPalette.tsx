@@ -4,8 +4,8 @@ import { useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
 import {
-  LayoutDashboard, CheckSquare, Shield, BookOpen, StickyNote,
-  Dumbbell, Target, Calendar, BarChart2, Trophy,
+  LayoutDashboard, CheckSquare, Shield, BookOpen,
+  Target, Calendar,
   Settings, Plus, Search,
 } from 'lucide-react';
 import { useUiStore } from '@/stores/ui.store';
@@ -35,23 +35,17 @@ export function CommandPalette() {
   }, [closeCommandPalette, router]);
 
   const NAV_ITEMS: CommandItem[] = [
-    { id: 'dashboard',    group: 'Navigate', label: 'Dashboard',    icon: <LayoutDashboard />, onSelect: () => nav('/app') },
-    { id: 'habits',       group: 'Navigate', label: 'Habits',       icon: <CheckSquare />,     onSelect: () => nav('/app/habits') },
-    { id: 'recovery',     group: 'Navigate', label: 'Recovery',     icon: <Shield />,          onSelect: () => nav('/app/recovery') },
-    { id: 'journal',      group: 'Navigate', label: 'Journal',      icon: <BookOpen />,        onSelect: () => nav('/app/journal') },
-    { id: 'notes',        group: 'Navigate', label: 'Notes',        icon: <StickyNote />,      onSelect: () => nav('/app/notes') },
-    { id: 'gym',          group: 'Navigate', label: 'Gym',          icon: <Dumbbell />,        onSelect: () => nav('/app/gym') },
-    { id: 'goals',        group: 'Navigate', label: 'Goals',        icon: <Target />,          onSelect: () => nav('/app/goals') },
-    { id: 'planner',      group: 'Navigate', label: 'Planner',      icon: <Calendar />,        onSelect: () => nav('/app/planner') },
-    { id: 'analytics',    group: 'Navigate', label: 'Analytics',    icon: <BarChart2 />,       onSelect: () => nav('/app/analytics') },
-    { id: 'achievements', group: 'Navigate', label: 'Achievements', icon: <Trophy />,          onSelect: () => nav('/app/achievements') },
-    { id: 'settings',     group: 'Navigate', label: 'Settings',     icon: <Settings />,        onSelect: () => nav('/app/settings') },
+    { id: 'dashboard', group: 'Navigate', label: 'Dashboard', icon: <LayoutDashboard />, onSelect: () => nav('/app') },
+    { id: 'habits',    group: 'Navigate', label: 'Habits',    icon: <CheckSquare />,     onSelect: () => nav('/app/habits') },
+    { id: 'recovery',  group: 'Navigate', label: 'Recovery',  icon: <Shield />,          onSelect: () => nav('/app/recovery') },
+    { id: 'journal',   group: 'Navigate', label: 'Journal',   icon: <BookOpen />,        onSelect: () => nav('/app/journal') },
+    { id: 'goals',     group: 'Navigate', label: 'Goals',     icon: <Target />,          onSelect: () => nav('/app/goals') },
+    { id: 'planner',   group: 'Navigate', label: 'Planner',   icon: <Calendar />,        onSelect: () => nav('/app/planner') },
+    { id: 'settings',  group: 'Navigate', label: 'Settings',  icon: <Settings />,        onSelect: () => nav('/app/settings') },
   ];
 
   const QUICK_ACTIONS: CommandItem[] = [
     { id: 'new-habit',   group: 'Quick actions', label: 'New habit',         icon: <Plus />,  onSelect: () => nav('/app/habits?new=1') },
-    { id: 'new-note',    group: 'Quick actions', label: 'New note',          icon: <Plus />,  onSelect: () => nav('/app/notes?new=1') },
-    { id: 'new-workout', group: 'Quick actions', label: 'Start workout',     icon: <Plus />,  onSelect: () => nav('/app/gym?start=1') },
     { id: 'new-journal', group: 'Quick actions', label: 'Write journal',     icon: <Plus />,  onSelect: () => nav('/app/journal?new=1') },
     { id: 'search',      group: 'Quick actions', label: 'Search everything', icon: <Search />,onSelect: () => nav(`/app/search?q=${encodeURIComponent(query)}`) },
   ];

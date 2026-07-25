@@ -202,7 +202,8 @@ export function HabitsView() {
           <EmptyState
             icon={<Sparkles />}
             title="Couldn't reach the server"
-            description="Check your connection and try refreshing."
+            description="Check your connection and try again."
+            action={{ label: 'Retry', onClick: () => window.location.reload() }}
             className="py-12 rounded-2xl border border-border bg-muted/20"
           />
         )}

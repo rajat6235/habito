@@ -104,7 +104,7 @@ function InsightsBar({ days }: { days: CalendarDay[] }) {
         icon={<Flame className="h-4 w-4" />}
         label="Avg mood"
         value={moodDisplay}
-        sub={stats.avgMood > 0 ? `from ${stats.journalDays} entries` : 'No mood data'}
+        sub={stats.avgMood > 0 ? `from ${stats.journalDays} ${stats.journalDays === 1 ? 'entry' : 'entries'}` : 'No mood data'}
         color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
       />
       <InsightCard

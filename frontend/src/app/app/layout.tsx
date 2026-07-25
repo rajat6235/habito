@@ -5,7 +5,7 @@ import { TopBar }    from '@/components/layout/TopBar';
 import { AuthGate }  from '@/components/layout/AuthGate';
 
 export const metadata: Metadata = {
-  title: { default: 'Dashboard · Habito', template: '%s · Habito' },
+  title: { default: 'Dashboard', template: '%s' },
 };
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
