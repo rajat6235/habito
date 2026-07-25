@@ -81,7 +81,9 @@ export function errorHandler(
     error: {
       code: 'INTERNAL_ERROR',
       message: 'An unexpected error occurred',
-      ...(err instanceof Error ? { debug: { message: err.message } } : {}),
+      ...(env.NODE_ENV === 'development' && err instanceof Error
+        ? { debug: { message: err.message, stack: err.stack } }
+        : {}),
     },
     requestId: req.requestId,
   });
