@@ -172,7 +172,7 @@ export class HabitRepository extends BaseRepository {
         createdAt:        true,
         category:         true,
         customFields:     true,
-        logs: { where: { logDate: today }, take: 1 },
+        logs: { where: { logDate: today } },
       },
       orderBy: [{ priority: 'asc' }, { createdAt: 'asc' }],
     });
