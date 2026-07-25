@@ -15,6 +15,7 @@ import {
   updateSettings,
   getSessions,
   terminateSession,
+  deleteMe,
 } from './users.controller';
 
 export const usersRouter = Router();
@@ -42,4 +43,11 @@ usersRouter.delete(
   authenticate,
   auditLog({ action: 'user.session_terminated' }),
   terminateSession,
+);
+
+usersRouter.delete(
+  '/me',
+  authenticate,
+  auditLog({ action: 'user.account_deleted' }),
+  deleteMe,
 );

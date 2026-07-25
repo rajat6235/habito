@@ -15,7 +15,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 const loginSchema = z.object({
-  email:      z.string().email('Enter a valid email'),
+  email:      z.string().min(1, 'Email is required').email('Enter a valid email'),
   password:   z.string().min(1, 'Password is required'),
   rememberMe: z.boolean().default(false),
 });

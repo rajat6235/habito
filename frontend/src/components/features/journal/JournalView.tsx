@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/stores/ui.store';
 import type { JournalEntry } from '@/lib/api/journal.api';
 
 // ── Mood Picker ───────────────────────────────────────────────────────────────
@@ -120,8 +121,9 @@ const TABS: { key: EntryType; label: string; icon: React.ReactNode }[] = [
 // ── Morning Form ──────────────────────────────────────────────────────────────
 
 function MorningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: string; onSaved: () => void }) {
-  const create = useCreateJournalEntry();
-  const update = useUpdateJournalEntry(entry?.id ?? '');
+  const create     = useCreateJournalEntry();
+  const update     = useUpdateJournalEntry(entry?.id ?? '');
+  const { toast }  = useToast();
 
   const [mood,      setMood]      = useState(entry?.moodMorning ?? null);
   const [energy,    setEnergy]    = useState(entry?.energyLevel ?? null);
@@ -145,6 +147,7 @@ function MorningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
     };
     if (entry) await update.mutateAsync(payload);
     else       await create.mutateAsync(payload);
+    toast({ title: entry ? 'Morning entry updated' : 'Morning entry saved', variant: 'success' });
     onSaved();
   }
 
@@ -191,8 +194,9 @@ function MorningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
 // ── Evening Form ──────────────────────────────────────────────────────────────
 
 function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: string; onSaved: () => void }) {
-  const create = useCreateJournalEntry();
-  const update = useUpdateJournalEntry(entry?.id ?? '');
+  const create     = useCreateJournalEntry();
+  const update     = useUpdateJournalEntry(entry?.id ?? '');
+  const { toast }  = useToast();
 
   const [mood,    setMood]    = useState(entry?.moodEvening ?? null);
   const [rating,  setRating]  = useState(entry?.dayRating ?? null);
@@ -216,6 +220,7 @@ function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
     };
     if (entry) await update.mutateAsync(payload);
     else       await create.mutateAsync(payload);
+    toast({ title: entry ? 'Evening entry updated' : 'Evening entry saved', variant: 'success' });
     onSaved();
   }
 
@@ -280,8 +285,9 @@ function EveningForm({ entry, date, onSaved }: { entry?: JournalEntry; date: str
 // ── Free Write Form ───────────────────────────────────────────────────────────
 
 function FreeWriteForm({ entry, date, onSaved }: { entry?: JournalEntry; date: string; onSaved: () => void }) {
-  const create = useCreateJournalEntry();
-  const update = useUpdateJournalEntry(entry?.id ?? '');
+  const create    = useCreateJournalEntry();
+  const update    = useUpdateJournalEntry(entry?.id ?? '');
+  const { toast } = useToast();
   const [content, setContent] = useState(entry?.content ?? '');
   const saving = create.isPending || update.isPending;
 
@@ -289,6 +295,7 @@ function FreeWriteForm({ entry, date, onSaved }: { entry?: JournalEntry; date: s
     const payload = { entryDate: date, entryType: 'free_write' as const, content: content || undefined };
     if (entry) await update.mutateAsync(payload);
     else       await create.mutateAsync(payload);
+    toast({ title: entry ? 'Entry updated' : 'Entry saved', variant: 'success' });
     onSaved();
   }
 

@@ -6,12 +6,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format, parseISO } from 'date-fns';
 import {
-  User, Shield, Monitor, Eye, EyeOff, Loader2, Trash2,
+  User, Shield, Monitor, Eye, EyeOff, Loader2, Trash2, AlertTriangle,
 } from 'lucide-react';
 
 import {
   useMe, useUpdateProfile, useChangePassword,
-  useUserSessions, useRevokeSession,
+  useUserSessions, useRevokeSession, useDeleteAccount,
 } from '@/hooks/api/useUser';
 import { useAuthStore } from '@/stores/auth.store';
 import { Button } from '@/components/ui/button';
@@ -313,8 +313,10 @@ function SecurityTab() {
             {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </button>
         </div>
-        {errors.newPassword && (
+        {errors.newPassword ? (
           <p className="text-xs text-destructive">{errors.newPassword.message}</p>
+        ) : (
+          <p className="text-xs text-muted-foreground">Minimum 8 characters</p>
         )}
       </div>
 
@@ -359,13 +361,23 @@ function SecurityTab() {
 
 function parseDevice(ua: string | null | undefined): string {
   if (!ua) return 'Unknown device';
-  if (/iPhone/i.test(ua))    return 'iPhone';
-  if (/iPad/i.test(ua))      return 'iPad';
-  if (/Android/i.test(ua))   return 'Android device';
-  if (/Macintosh/i.test(ua)) return 'Mac';
-  if (/Windows/i.test(ua))   return 'Windows PC';
-  if (/Linux/i.test(ua))     return 'Linux';
-  return 'Unknown device';
+
+  let os = 'Unknown device';
+  if (/iPhone/i.test(ua))    os = 'iPhone';
+  else if (/iPad/i.test(ua)) os = 'iPad';
+  else if (/Android/i.test(ua)) os = 'Android';
+  else if (/Macintosh/i.test(ua)) os = 'Mac';
+  else if (/Windows/i.test(ua)) os = 'Windows';
+  else if (/Linux/i.test(ua)) os = 'Linux';
+
+  let browser = '';
+  if (/Edg\//i.test(ua))          browser = 'Edge';
+  else if (/OPR\//i.test(ua))     browser = 'Opera';
+  else if (/Chrome\//i.test(ua))  browser = 'Chrome';
+  else if (/Firefox\//i.test(ua)) browser = 'Firefox';
+  else if (/Safari\//i.test(ua))  browser = 'Safari';
+
+  return browser ? `${os} · ${browser}` : os;
 }
 
 // ── Sessions Tab ──────────────────────────────────────────────────────────────
@@ -470,6 +482,83 @@ function SessionsTab() {
   );
 }
 
+// ── Danger Zone Tab ───────────────────────────────────────────────────────────
+
+function DangerZoneTab() {
+  const [confirming, setConfirming] = useState(false);
+  const [input,      setInput]      = useState('');
+  const deleteAccount = useDeleteAccount();
+
+  const CONFIRM_PHRASE = 'delete my account';
+  const ready = input.trim().toLowerCase() === CONFIRM_PHRASE;
+
+  return (
+    <div className="space-y-5 max-w-lg">
+      <div>
+        <h3 className="text-sm font-semibold text-destructive">Danger zone</h3>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          These actions are permanent and cannot be undone.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" aria-hidden />
+          <div>
+            <p className="text-sm font-medium">Delete account</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Permanently delete your account and all associated data — habits, logs, goals, journal entries, and planner tasks. This cannot be reversed.
+            </p>
+          </div>
+        </div>
+
+        {!confirming ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setConfirming(true)}
+          >
+            Delete my account
+          </Button>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">
+              Type <span className="font-mono font-semibold text-foreground">{CONFIRM_PHRASE}</span> to confirm:
+            </p>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={CONFIRM_PHRASE}
+              aria-label="Confirm account deletion"
+              className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-sm outline-none focus:border-destructive transition-colors"
+            />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setConfirming(false); setInput(''); }}
+                disabled={deleteAccount.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                disabled={!ready}
+                loading={deleteAccount.isPending}
+                onClick={() => deleteAccount.mutate()}
+              >
+                Permanently delete
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── SettingsView ──────────────────────────────────────────────────────────────
 
 export function SettingsView() {
@@ -498,6 +587,10 @@ export function SettingsView() {
                 <Monitor className="h-3.5 w-3.5" />
                 Sessions
               </TabsTrigger>
+              <TabsTrigger value="danger" className="gap-1.5 text-destructive data-[state=active]:text-destructive">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Danger
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile" className="flex-1 px-4 py-5">
@@ -508,6 +601,9 @@ export function SettingsView() {
             </TabsContent>
             <TabsContent value="sessions" className="flex-1 px-4 py-5">
               <SessionsTab />
+            </TabsContent>
+            <TabsContent value="danger" className="flex-1 px-4 py-5">
+              <DangerZoneTab />
             </TabsContent>
           </Tabs>
         </div>

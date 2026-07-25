@@ -50,7 +50,7 @@ export function TimelineTab({ habitId, customFields = [], onEditLog, onDeleteLog
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useHabitLogs(habitId);
   const logs = useMemo(() => data?.pages.flatMap(p => p.data) ?? [], [data]);
   const months = useMemo(() => groupByMonth(logs), [logs]);
-  const visibleFields = customFields.filter(f => f.showInHistory !== false);
+  const visibleFields = (customFields ?? []).filter(f => f.showInHistory !== false);
 
   if (isLoading) {
     return (
@@ -176,7 +176,7 @@ export function TimelineTab({ habitId, customFields = [], onEditLog, onDeleteLog
                       <div className="flex items-center gap-1 mt-2">
                         <Clock className="h-2.5 w-2.5 text-muted-foreground/60" aria-hidden />
                         <span className="text-[9px] text-muted-foreground/60">
-                          {format(parseISO(log.loggedAt), 'h:mm a')}
+                          {log.loggedAt ? format(parseISO(log.loggedAt), 'h:mm a') : ''}
                         </span>
                       </div>
                     </div>

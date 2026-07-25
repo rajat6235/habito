@@ -12,6 +12,7 @@ import {
   usePlannerTasks, useCreateTask, useUpdateTask,
   useDeleteTask, useCarryOverTasks,
 } from '@/hooks/api/usePlanner';
+import { useToast } from '@/stores/ui.store';
 import type { PlannerTask } from '@/lib/api/planner.api';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -84,7 +85,7 @@ function TaskItem({ task, dateStr }: TaskItemProps) {
           {task.title}
         </motion.span>
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-          <Badge className={cn('text-xs px-1.5 py-0', PRIORITY_STYLES[task.priority])}>
+          <Badge className={cn('text-xs px-1.5 py-0 capitalize', PRIORITY_STYLES[task.priority])}>
             {task.priority}
           </Badge>
           {task.estimatedMinutes != null && (
@@ -258,6 +259,7 @@ export function PlannerView() {
 
   const { data: tasks = [], isLoading } = usePlannerTasks(dateStr);
   const carryOver = useCarryOverTasks(dateStr);
+  const { toast } = useToast();
 
   const completedCount   = tasks.filter((t) => t.isCompleted).length;
   const incompleteTasks  = tasks.filter((t) => !t.isCompleted);
@@ -287,7 +289,13 @@ export function PlannerView() {
   }
 
   function handleCarryOver() {
-    carryOver.mutate({ fromDate: dateStr, toDate: tomorrowStr });
+    const count = incompleteTasks.length;
+    carryOver.mutate({ fromDate: dateStr, toDate: tomorrowStr }, {
+      onSuccess: () => toast({
+        title: `${count} task${count !== 1 ? 's' : ''} moved to tomorrow`,
+        variant: 'success',
+      }),
+    });
   }
 
   return (

@@ -125,7 +125,7 @@ function SidebarLink({
   );
 
   const link = item.soon ? (
-    <div className={sharedClass} aria-disabled="true">
+    <div className={sharedClass} role="button" aria-disabled="true" tabIndex={-1}>
       {inner}
     </div>
   ) : (

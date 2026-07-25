@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { usersApi } from '@/lib/api/users.api';
 import type { UpdateProfilePayload, ChangePasswordPayload } from '@/lib/api/users.api';
 import { useToast } from '@/stores/ui.store';
@@ -80,6 +81,23 @@ export function useRevokeSession() {
     },
     onError: (error) => {
       toast({ title: 'Failed to revoke session', description: String(error), variant: 'destructive' });
+    },
+  });
+}
+
+export function useDeleteAccount() {
+  const clearAuth  = useAuthStore((s) => s.clearAuth);
+  const { toast }  = useToast();
+  const router     = useRouter();
+
+  return useMutation({
+    mutationFn: () => usersApi.deleteMe(),
+    onSuccess: () => {
+      clearAuth();
+      router.replace('/');
+    },
+    onError: (error) => {
+      toast({ title: 'Account deletion failed', description: String(error), variant: 'destructive' });
     },
   });
 }

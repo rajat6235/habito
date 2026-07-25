@@ -149,7 +149,7 @@ export function StatsTab({ habitId, customFields = [] }: StatsTabProps) {
 
   const fieldAnalytics = useMemo(() => {
     if (!data?.heatmap) return [];
-    return computeFieldAnalytics(data.heatmap, customFields);
+    return computeFieldAnalytics(data.heatmap, customFields ?? []);
   }, [data?.heatmap, customFields]);
 
   // Week-over-week comparison
@@ -169,7 +169,7 @@ export function StatsTab({ habitId, customFields = [] }: StatsTabProps) {
 
   if (!data) return <p className="text-sm text-muted-foreground">No stats available.</p>;
 
-  const maxRate = Math.max(...data.byDayOfWeek.map(d => d.rate), 1);
+  const maxRate = Math.max(...(data.byDayOfWeek ?? []).map(d => d.rate), 1);
 
   return (
     <div className="space-y-6">

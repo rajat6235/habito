@@ -685,12 +685,15 @@ export function GoalsView() {
   const [sheetOpen,    setSheetOpen]    = useState(false);
 
   const params =
-    statusFilter === 'all' ? undefined
-    : statusFilter === 'active' ? { status: 'in_progress' as const }
-    : statusFilter === 'completed' ? { status: 'completed' as const }
-    : { status: 'abandoned' as const };
+    statusFilter === 'completed' ? { status: 'completed' as const }
+    : statusFilter === 'abandoned' ? { status: 'abandoned' as const }
+    : undefined;
 
-  const { data: goals = [], isLoading } = useGoals(params);
+  const { data: rawGoals = [], isLoading } = useGoals(params);
+
+  const goals = statusFilter === 'active'
+    ? rawGoals.filter((g) => g.status === 'in_progress' || g.status === 'not_started')
+    : rawGoals;
 
   return (
     <div className="flex flex-col h-full">

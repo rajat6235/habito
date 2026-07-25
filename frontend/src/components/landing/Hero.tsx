@@ -69,7 +69,7 @@ export function Hero() {
           className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 leading-relaxed"
         >
           The all-in-one personal operating system for habit tracking, recovery support,
-          gym logging, journaling, and goal achievement.
+          journaling, and goal achievement.
         </motion.p>
 
         {/* CTA buttons */}

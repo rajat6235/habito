@@ -42,4 +42,8 @@ export const usersApi = {
   revokeSession(id: string): Promise<void> {
     return apiDelete(`/users/me/sessions/${id}`);
   },
+
+  deleteMe(): Promise<void> {
+    return apiDelete('/users/me');
+  },
 };

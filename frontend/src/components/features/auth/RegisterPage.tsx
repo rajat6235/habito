@@ -22,7 +22,7 @@ const registerSchema = z.object({
   firstName: z.string().trim().min(1, 'Required'),
   lastName:  z.string().trim().min(1, 'Required'),
   username:  z.string().min(3, 'At least 3 characters').max(30).regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers, underscores only'),
-  email:     z.string().email('Enter a valid email'),
+  email:     z.string().min(1, 'Email is required').email('Enter a valid email'),
   password:  passwordSchema,
   terms:     z.literal(true, { errorMap: () => ({ message: 'You must accept the terms' }) }),
 });

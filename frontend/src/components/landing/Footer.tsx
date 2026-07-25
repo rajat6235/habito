@@ -7,17 +7,17 @@ const footerLinks = [
     links: [
       { label: 'Features',  href: '/#features' },
       { label: 'Pricing',   href: '/#pricing'  },
-      { label: 'Changelog', href: '#'          },
-      { label: 'Roadmap',   href: '#'          },
+      { label: 'Changelog', href: null         },
+      { label: 'Roadmap',   href: null         },
     ],
   },
   {
     heading: 'Company',
     links: [
-      { label: 'About',   href: '#' },
-      { label: 'Blog',    href: '#' },
-      { label: 'Careers', href: '#' },
-      { label: 'Press',   href: '#' },
+      { label: 'About',   href: null },
+      { label: 'Blog',    href: null },
+      { label: 'Careers', href: null },
+      { label: 'Press',   href: null },
     ],
   },
   {
@@ -25,16 +25,16 @@ const footerLinks = [
     links: [
       { label: 'Privacy',  href: '/privacy' },
       { label: 'Terms',    href: '/terms'   },
-      { label: 'Cookies',  href: '#'        },
-      { label: 'Security', href: '#'        },
+      { label: 'Cookies',  href: null       },
+      { label: 'Security', href: null       },
     ],
   },
   {
     heading: 'Support',
     links: [
-      { label: 'Help Center', href: '#' },
-      { label: 'Discord',     href: '#' },
-      { label: 'Status',      href: '#' },
+      { label: 'Help Center', href: null },
+      { label: 'Discord',     href: null },
+      { label: 'Status',      href: null },
       { label: 'Contact',     href: 'mailto:support@habito.app' },
     ],
   },
@@ -70,12 +70,18 @@ export function Footer() {
               <ul className="flex flex-col gap-2">
                 {col.links.map((link) => (
                   <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {link.label}
-                    </Link>
+                    {link.href ? (
+                      <Link
+                        href={link.href}
+                        className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {link.label}
+                      </Link>
+                    ) : (
+                      <span className="text-sm text-muted-foreground/40 cursor-default select-none">
+                        {link.label}
+                      </span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -91,14 +97,14 @@ export function Footer() {
 
           <div className="flex items-center gap-1">
             {socials.map(({ icon: Icon, label }) => (
-              <a
+              <span
                 key={label}
-                href="#"
-                aria-label={label}
-                className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                aria-label={`${label} — coming soon`}
+                title={`${label} — coming soon`}
+                className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-foreground/30 cursor-default"
               >
                 <Icon className="h-4 w-4" />
-              </a>
+              </span>
             ))}
           </div>
         </div>

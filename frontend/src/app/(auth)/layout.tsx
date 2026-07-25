@@ -1,4 +1,5 @@
-import { CheckCircle2, Shield, Dumbbell, BookOpen } from 'lucide-react';
+import { CheckCircle2, Shield, Target, BookOpen } from 'lucide-react';
+import { AuthRedirectGuard } from '@/components/features/auth/AuthRedirectGuard';
 
 const features = [
   {
@@ -16,11 +17,11 @@ const features = [
     desc:  'Every day sober counts — we track it all',
   },
   {
-    icon:  Dumbbell,
+    icon:  Target,
     color: 'text-amber-400',
     bg:    'bg-amber-500/20',
-    label: 'Gym Logging',
-    desc:  'Log PRs, track volume, see progress curves',
+    label: 'Goal Tracking',
+    desc:  'Set milestones, track progress, achieve more',
   },
   {
     icon:  BookOpen,
@@ -34,6 +35,7 @@ const features = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-background">
+      <AuthRedirectGuard />
       {/* ── Left branding panel ── */}
       <div className="hidden lg:flex lg:w-[45%] relative overflow-hidden bg-gradient-to-br from-brand-900 via-brand-800 to-[#1e1456]">
         {/* Animated orbs */}

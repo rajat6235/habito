@@ -1,9 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Bell, Search, Moon, Sun, Monitor } from 'lucide-react';
+import { Search, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
-import { useNotificationStore } from '@/stores/notification.store';
 import { useUiStore } from '@/stores/ui.store';
 import { useKeyboardShortcut } from '@/hooks/useKeyboardShortcut';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -14,9 +13,8 @@ interface TopBarProps {
 }
 
 export function TopBar({ title }: TopBarProps) {
-  const unreadCount        = useNotificationStore((s) => s.unreadCount);
   const openCommandPalette = useUiStore((s) => s.openCommandPalette);
-  const { theme, setTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -26,15 +24,13 @@ export function TopBar({ title }: TopBarProps) {
     callback:  openCommandPalette,
   });
 
-  function cycleTheme() {
-    if (theme === 'light')       setTheme('dark');
-    else if (theme === 'dark')   setTheme('system');
-    else                         setTheme('light');
+  function toggleTheme() {
+    setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
   }
 
-  const resolvedTheme = mounted ? theme : undefined;
-  const ThemeIcon  = resolvedTheme === 'light' ? Sun : resolvedTheme === 'dark' ? Moon : Monitor;
-  const themeLabel = resolvedTheme === 'light' ? 'Switch to dark' : resolvedTheme === 'dark' ? 'Switch to system' : 'Switch to light';
+  const isDark     = mounted && resolvedTheme === 'dark';
+  const ThemeIcon  = isDark ? Moon : Sun;
+  const themeLabel = isDark ? 'Switch to light mode' : 'Switch to dark mode';
 
   return (
     /*
@@ -72,7 +68,7 @@ export function TopBar({ title }: TopBarProps) {
           <Tooltip>
             <TooltipTrigger asChild>
               <button
-                onClick={cycleTheme}
+                onClick={toggleTheme}
                 className="p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 aria-label={themeLabel}
               >
@@ -80,27 +76,6 @@ export function TopBar({ title }: TopBarProps) {
               </button>
             </TooltipTrigger>
             <TooltipContent>{themeLabel}</TooltipContent>
-          </Tooltip>
-
-          {/* Notifications */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className="relative p-2 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={`Notifications${unreadCount > 0 ? ` · ${unreadCount} unread` : ''}`}
-              >
-                <Bell className="h-4 w-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 flex h-2 w-2" aria-hidden>
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-60" />
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
-                  </span>
-                )}
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {unreadCount > 0 ? `${unreadCount} unread notifications` : 'Notifications'}
-            </TooltipContent>
           </Tooltip>
         </div>
       </div>

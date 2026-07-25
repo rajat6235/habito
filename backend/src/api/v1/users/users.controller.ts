@@ -147,6 +147,39 @@ export async function getSessions(req: Request, res: Response, next: NextFunctio
   }
 }
 
+export async function deleteMe(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = req.user!.id;
+
+    const user = await prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      include: { roles: { include: { role: true } } },
+    });
+    if (!user) throw AppError.notFound('User not found');
+
+    const isSuperAdmin = user.roles.some(ur => ur.role.name === 'super_admin');
+    if (isSuperAdmin) throw AppError.forbidden('Super-admin accounts cannot be self-deleted');
+
+    await prisma.$transaction([
+      prisma.session.deleteMany({ where: { userId: id } }),
+      prisma.user.update({
+        where: { id },
+        data: {
+          deletedAt: new Date(),
+          status:    'deleted',
+          email:    `deleted_${id}@deleted.invalid`,
+          username: `deleted_${id}`,
+        },
+      }),
+    ]);
+
+    res.clearCookie('habito_session');
+    sendSuccess(res, { message: 'Account deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function terminateSession(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params as { id: string };

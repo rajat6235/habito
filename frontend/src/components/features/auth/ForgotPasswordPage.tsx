@@ -9,7 +9,7 @@ import { Loader2, CheckCircle2 } from 'lucide-react';
 import { authApi } from '@/lib/api/auth.api';
 import { cn } from '@/lib/utils';
 
-const schema = z.object({ email: z.string().email('Enter a valid email') });
+const schema = z.object({ email: z.string().min(1, 'Email is required').email('Enter a valid email') });
 type Form = z.infer<typeof schema>;
 
 export function ForgotPasswordPage() {

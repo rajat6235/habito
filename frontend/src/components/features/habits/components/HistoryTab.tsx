@@ -68,7 +68,7 @@ export function HistoryTab({ habitId, customFields = [], onEditLog, onDeleteLog 
   const [search,       setSearch]       = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
-  const visibleFields = customFields.filter(f => f.showInHistory !== false);
+  const visibleFields = (customFields ?? []).filter(f => f.showInHistory !== false);
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useHabitLogs(habitId);
 
   const allLogs = useMemo(() => data?.pages.flatMap(p => p.data) ?? [], [data]);
@@ -127,7 +127,7 @@ export function HistoryTab({ habitId, customFields = [], onEditLog, onDeleteLog 
             ))}
             <div className="flex-1" />
             <button
-              onClick={() => exportCSV(filtered, customFields)}
+              onClick={() => exportCSV(filtered, customFields ?? [])}
               className="flex items-center gap-1 px-2 py-0.5 rounded-md text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title="Export CSV"
             >
