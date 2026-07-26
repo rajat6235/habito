@@ -54,6 +54,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
       : { type: 'daily' };
 
     try {
+      const validCustomFields = customFields.filter(f => f.name.trim().length > 0);
       await createHabit.mutateAsync({
         title:           values.title.trim(),
         description:     values.description,
@@ -61,7 +62,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
         icon:            values.icon || undefined,
         color:           values.color || undefined,
         frequencyConfig,
-        customFields:    customFields.length > 0 ? customFields : undefined,
+        customFields:    validCustomFields.length > 0 ? validCustomFields : undefined,
       });
       reset();
       setCustomFields([]);

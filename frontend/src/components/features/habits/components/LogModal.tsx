@@ -32,6 +32,7 @@ export function LogModal({ habit, dateStr, onClose }: LogModalProps) {
   const customFields  = (habit?.customFields ?? []) as CustomFieldDef[];
   const streak        = habit?.currentStreak ?? 0;
   const hasCustomFields = customFields.length > 0;
+  const todayStatus     = (habit as HabitWithTodayLog | null)?.todayLog?.status;
   const [noteOpen, setNoteOpen] = useState(!hasCustomFields);
 
   const methods = useForm<LogHabitForm>({ resolver: zodResolver(logHabitSchema) });
@@ -60,7 +61,9 @@ export function LogModal({ habit, dateStr, onClose }: LogModalProps) {
     );
   }
 
-  const allDoneAlready = remaining <= 0;
+  // For single habits use status (same as isCompleted) — completionCount can be stale
+  // after a skip/undo cycle, causing a false "already done" even when not completed.
+  const allDoneAlready = timesPerDay > 1 ? remaining <= 0 : todayStatus === 'completed';
 
   return (
     <Dialog open={Boolean(habit)} onOpenChange={(o) => !o && onClose()}>
