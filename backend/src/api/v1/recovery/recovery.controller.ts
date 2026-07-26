@@ -90,6 +90,7 @@ export async function updateGoal(req: Request, res: Response, next: NextFunction
         ...(body.color         !== undefined ? { color:         body.color }                              : {}),
         ...(body.personalWhy   !== undefined ? { personalWhy:   body.personalWhy }                        : {}),
         ...(body.emergencyPlan !== undefined ? { emergencyPlan: body.emergencyPlan }                      : {}),
+        ...(body.startDate     !== undefined ? { startDate:     new Date(body.startDate) }                : {}),
       },
     });
 

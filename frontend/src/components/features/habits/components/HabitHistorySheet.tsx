@@ -12,6 +12,7 @@ import { StatsTab } from './StatsTab';
 import { TimelineTab } from './TimelineTab';
 import { EditLogModal } from './EditLogModal';
 import { DeleteLogConfirm } from './DeleteLogConfirm';
+import { useHabitStats } from '@/hooks/api/useHabits';
 import type { Habit, HabitLog } from '@shared/types/api.types';
 
 interface HabitHistorySheetProps {
@@ -22,6 +23,11 @@ interface HabitHistorySheetProps {
 export function HabitHistorySheet({ habit, onClose }: HabitHistorySheetProps) {
   const [editingLog,  setEditingLog]  = useState<HabitLog | null>(null);
   const [deletingLog, setDeletingLog] = useState<HabitLog | null>(null);
+
+  // Use live stats so header reflects actual log count, not stale denormalized values
+  const { data: stats } = useHabitStats(habit?.id ?? '');
+  const currentStreak   = stats?.currentStreak   ?? 0;
+  const totalCompletions = stats?.totalCompletions ?? 0;
 
   return (
     <>
@@ -43,17 +49,17 @@ export function HabitHistorySheet({ habit, onClose }: HabitHistorySheetProps) {
               <div className="flex-1 min-w-0">
                 <SheetTitle className="text-base leading-snug">{habit?.title}</SheetTitle>
                 <SheetDescription className="flex items-center gap-2 mt-0.5">
-                  {(habit?.currentStreak ?? 0) > 0 && (
+                  {currentStreak > 0 && (
                     <span className="flex items-center gap-1 text-amber-500 font-semibold">
                       <Flame className="h-3 w-3" aria-hidden />
-                      {habit?.currentStreak}d streak
+                      {currentStreak}d streak
                     </span>
                   )}
-                  {(habit?.currentStreak ?? 0) > 0 && (habit?.totalCompletions ?? 0) > 0 && (
+                  {currentStreak > 0 && totalCompletions > 0 && (
                     <span className="text-muted-foreground/40">·</span>
                   )}
-                  {(habit?.totalCompletions ?? 0) > 0 && (
-                    <span>{habit?.totalCompletions} total</span>
+                  {totalCompletions > 0 && (
+                    <span>{totalCompletions} total</span>
                   )}
                 </SheetDescription>
               </div>
@@ -99,7 +105,7 @@ export function HabitHistorySheet({ habit, onClose }: HabitHistorySheetProps) {
                   />
                 </TabsContent>
                 <TabsContent value="calendar">
-                  <CalendarTab habitId={habit.id} />
+                  <CalendarTab habitId={habit.id} startDate={habit.startDate} />
                 </TabsContent>
                 <TabsContent value="stats">
                   <StatsTab habitId={habit.id} customFields={habit.customFields} />

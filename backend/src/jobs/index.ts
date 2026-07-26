@@ -47,6 +47,7 @@ import { tokenCleanupJob } from './tokenCleanup.job';
 import { dailySnapshotJob } from './dailySnapshot.job';
 import { streakRecalculationJob } from './streakRecalculation.job';
 import { recoveryStreakJob } from './recoveryStreak.job';
+import { autoSkipJob } from './autoSkip.job';
 
 registerJob({
   name: 'token-cleanup',
@@ -70,4 +71,10 @@ registerJob({
   name: 'recovery-streak',
   intervalMs: 60 * 60 * 1000,          // hourly
   run: recoveryStreakJob,
+});
+
+registerJob({
+  name: 'auto-skip',
+  intervalMs: 60 * 60 * 1000,          // hourly — catches each user's local midnight
+  run: autoSkipJob,
 });

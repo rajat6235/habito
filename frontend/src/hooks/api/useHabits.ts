@@ -96,10 +96,12 @@ export function useLogHabit() {
   return useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: LogHabitPayload }) =>
       habitsApi.log(id, payload),
-    onSuccess: (_, { payload }) => {
+    onSuccess: (_, { id, payload }) => {
       const dateStr = payload.date;
       qc.invalidateQueries({ queryKey: queryKeys.habits.today(dateStr) });
       qc.invalidateQueries({ queryKey: ['dashboard'] });
+      qc.invalidateQueries({ queryKey: queryKeys.habits.logs(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.habits.stats(id) });
     },
     onError: (error: Error) => {
       const msg = error.message.includes('HABIT_MAX_COMPLETIONS_REACHED')

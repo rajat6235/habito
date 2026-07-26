@@ -13,9 +13,7 @@ export const createRecoveryGoalSchema = z.object({
   startDate:     z.string().datetime().optional(),
 });
 
-export const updateRecoveryGoalSchema = createRecoveryGoalSchema
-  .omit({ startDate: true })
-  .partial();
+export const updateRecoveryGoalSchema = createRecoveryGoalSchema.partial();
 
 export const logRelapseSchema = z.object({
   relapsedAt:  z.string().datetime().optional(),

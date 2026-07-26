@@ -214,16 +214,20 @@ export function StatsTab({ habitId, customFields = [] }: StatsTabProps) {
           <div className="flex gap-px min-w-0" role="img" aria-label="90-day activity heatmap">
             {heatGrid.map((week, wi) => (
               <div key={wi} className="flex flex-col gap-px">
-                {week.map((day, di) => (
-                  <div
-                    key={di}
-                    title={day.date ? `${day.date}${day.status ? ' · ' + day.status : ''}` : undefined}
-                    className={cn(
-                      'h-[9px] w-[9px] rounded-[2px] transition-opacity',
-                      heatColor(day.status),
-                    )}
-                  />
-                ))}
+                {week.map((day, di) => {
+                  const isToday = day.date === format(new Date(), 'yyyy-MM-dd');
+                  return (
+                    <div
+                      key={di}
+                      title={day.date ? `${day.date}${day.status ? ' · ' + day.status : ''}` : undefined}
+                      className={cn(
+                        'h-[9px] w-[9px] rounded-[2px] transition-opacity',
+                        heatColor(day.status),
+                        isToday && 'ring-1 ring-primary ring-offset-[1px] ring-offset-background',
+                      )}
+                    />
+                  );
+                })}
               </div>
             ))}
           </div>

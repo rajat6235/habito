@@ -60,6 +60,24 @@ export function useCreateRecoveryGoal() {
   });
 }
 
+export function useUpdateRecoveryGoal(goalId: string) {
+  const qc        = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (payload: Partial<CreateRecoveryGoalPayload>) => recoveryApi.update(goalId, payload),
+    onSuccess: (goal) => {
+      qc.setQueryData(KEYS.detail(goalId), goal);
+      qc.invalidateQueries({ queryKey: KEYS.all() });
+      qc.invalidateQueries({ queryKey: KEYS.clock(goalId) });
+      toast({ title: 'Goal updated', variant: 'success' });
+    },
+    onError: (err) => {
+      toast({ title: 'Failed to update goal', description: String(err), variant: 'destructive' });
+    },
+  });
+}
+
 export function useLogRelapse(goalId: string) {
   const qc        = useQueryClient();
   const { toast } = useToast();

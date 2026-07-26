@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isBefore } from 'date-fns';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useHabitLogsRange } from '@/hooks/api/useHabits';
 import { Button } from '@/components/ui/button';
@@ -12,10 +12,14 @@ import type { HabitLog } from '@shared/types/api.types';
 const DAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] as const;
 
 interface CalendarTabProps {
-  habitId: string;
+  habitId:   string;
+  startDate: string;
 }
 
-export function CalendarTab({ habitId }: CalendarTabProps) {
+export function CalendarTab({ habitId, startDate }: CalendarTabProps) {
+  const habitStart = useMemo(() => new Date(startDate + 'T00:00:00'), [startDate]);
+  const habitStartMonth = useMemo(() => startOfMonth(habitStart), [habitStart]);
+
   const [monthDate, setMonthDate] = useState(() => new Date());
 
   const from = format(startOfMonth(monthDate), 'yyyy-MM-dd');
@@ -25,13 +29,14 @@ export function CalendarTab({ habitId }: CalendarTabProps) {
 
   const logsByDate = useMemo(() => {
     const map = new Map<string, HabitLog>();
-    (data?.data ?? []).forEach(l => map.set(l.logDate, l));
+    (data?.data ?? []).forEach(l => map.set(l.logDate.slice(0, 10), l));
     return map;
   }, [data]);
 
   const days      = eachDayOfInterval({ start: startOfMonth(monthDate), end: endOfMonth(monthDate) });
   const firstDow  = startOfMonth(monthDate).getDay();
   const today     = new Date();
+  const isAtStartMonth = isSameDay(startOfMonth(monthDate), habitStartMonth) || isBefore(startOfMonth(monthDate), habitStartMonth);
 
   function prev() { setMonthDate(d => new Date(d.getFullYear(), d.getMonth() - 1, 1)); }
   function next() { setMonthDate(d => new Date(d.getFullYear(), d.getMonth() + 1, 1)); }
@@ -39,7 +44,13 @@ export function CalendarTab({ habitId }: CalendarTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Button variant="ghost" size="icon" onClick={prev} aria-label="Previous month">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={prev}
+          disabled={isAtStartMonth}
+          aria-label="Previous month"
+        >
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <span className="text-sm font-medium" aria-live="polite">
@@ -62,7 +73,12 @@ export function CalendarTab({ habitId }: CalendarTabProps) {
             <div key={`pad-${i}`} role="gridcell" aria-hidden />
           ))}
           {days.map(day => {
-            const key       = format(day, 'yyyy-MM-dd');
+            const key = format(day, 'yyyy-MM-dd');
+
+            if (isBefore(day, habitStart)) {
+              return <div key={key} role="gridcell" aria-hidden />;
+            }
+
             const log       = logsByDate.get(key);
             const isToday   = isSameDay(day, today);
             const isFuture  = day > today;

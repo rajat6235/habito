@@ -441,7 +441,8 @@ export async function getHabitStats(req: Request, res: Response, next: NextFunct
     ]);
 
     const completedCount = allLogs.filter(l => l.status === 'completed').length;
-    const totalDays      = allLogs.length;
+    const failedCount    = allLogs.filter(l => l.status === 'failed').length;
+    const attemptedDays  = completedCount + failedCount;
 
     const heatmap = allLogs.map(l => ({
       date:              l.logDate.toISOString().split('T')[0],
@@ -458,13 +459,30 @@ export async function getHabitStats(req: Request, res: Response, next: NextFunct
       return { day, count, rate: dayLogs.length > 0 ? Math.round((count / dayLogs.length) * 100) : 0 };
     });
 
+    // Recompute from actual logs to heal any stale denormalized values
+    const liveStreak = await recalculateHabitStreak(id);
+    const staleDiff  = liveStreak.currentStreak    !== habit.currentStreak
+                    || liveStreak.longestStreak     !== habit.longestStreak
+                    || liveStreak.totalCompletions  !== habit.totalCompletions;
+    if (staleDiff) {
+      await prisma.habit.update({
+        where: { id },
+        data: {
+          currentStreak:    liveStreak.currentStreak,
+          longestStreak:    liveStreak.longestStreak,
+          totalCompletions: liveStreak.totalCompletions,
+          lastCompletedDate: liveStreak.lastCompletedDate,
+        },
+      });
+    }
+
     sendSuccess(res, {
       habitId:            id,
       title:              habit.title,
-      currentStreak:      habit.currentStreak,
-      longestStreak:      habit.longestStreak,
-      totalCompletions:   habit.totalCompletions,
-      successRate:        totalDays > 0 ? Math.round((completedCount / totalDays) * 100) : 0,
+      currentStreak:      liveStreak.currentStreak,
+      longestStreak:      liveStreak.longestStreak,
+      totalCompletions:   liveStreak.totalCompletions,
+      successRate:        attemptedDays > 0 ? Math.round((completedCount / attemptedDays) * 100) : 0,
       last30Days:         last30Logs.length,
       last7Days:          last7Logs.length,
       heatmap,
