@@ -58,6 +58,13 @@ enum HabitFrequency {
   @@map("habit_frequency")
 }
 
+enum HabitType {
+  regular
+  event
+
+  @@map("habit_type")
+}
+
 enum Priority {
   low
   medium
@@ -564,7 +571,9 @@ model Habit {
   description     String?
   icon            String?        @db.VarChar(100)
   color           String?        @db.VarChar(7)
-  frequencyType   HabitFrequency @map("frequency_type")
+  habitType       HabitType      @default(regular) @map("habit_type")
+  // null for event-based habits — they have no schedule/due-date concept
+  frequencyType   HabitFrequency? @map("frequency_type")
   frequencyConfig Json           @default("{}") @map("frequency_config")
   priority        Priority       @default(medium)
   reminderEnabled Boolean        @default(false) @map("reminder_enabled")

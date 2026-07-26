@@ -10,13 +10,15 @@ export interface HabitCategory {
 }
 
 export interface CreateHabitPayload {
-  title:           string;
-  description?:    string;
-  categoryId?:     string;
-  color?:          string;
-  icon?:           string;
-  frequencyConfig: { type: string; [key: string]: unknown };
-  priority?:       'low' | 'medium' | 'high';
+  title:            string;
+  description?:     string;
+  categoryId?:      string;
+  color?:           string;
+  icon?:            string;
+  habitType?:       'regular' | 'event';
+  // Required for regular habits, omitted for event-based ones (no schedule).
+  frequencyConfig?: { type: string; [key: string]: unknown };
+  priority?:        'low' | 'medium' | 'high';
   reminderEnabled?: boolean;
   reminderConfig?:  Record<string, unknown>;
   startDate?:       string;
@@ -41,19 +43,42 @@ export interface UpdateLogPayload {
   customFieldValues?: Record<string, unknown> | null;
 }
 
-export interface HabitStatsResponse {
+type HabitHeatmapDay = { date: string; status: string | null; value: number | null; note: string | null; completionCount: number; customFieldValues: Record<string, unknown> };
+
+export interface RegularHabitStatsResponse {
   habitId:          string;
   title:            string;
+  habitType:        'regular';
   currentStreak:    number;
   longestStreak:    number;
   totalCompletions: number;
   successRate:      number;
   last30Days:       number;
   last7Days:        number;
-  heatmap:          { date: string; status: string | null; value: number | null; note: string | null; completionCount: number; customFieldValues: Record<string, unknown> }[];
+  heatmap:          HabitHeatmapDay[];
   byDayOfWeek:      { day: number; count: number; rate: number }[];
   fieldAnalytics?:  CustomFieldAggregate[];
 }
+
+export interface EventHabitStatsResponse {
+  habitId:                 string;
+  title:                   string;
+  habitType:                'event';
+  totalCompletions:        number;
+  lastOccurrence:          string | null;
+  daysSinceLastOccurrence: number | null;
+  occurrencesThisMonth:    number;
+  occurrencesThisYear:     number;
+  averageIntervalDays:     number | null;
+  longestGapDays:          number | null;
+  shortestGapDays:         number | null;
+  last30Days:              number;
+  last7Days:               number;
+  heatmap:                 HabitHeatmapDay[];
+  fieldAnalytics?:         CustomFieldAggregate[];
+}
+
+export type HabitStatsResponse = RegularHabitStatsResponse | EventHabitStatsResponse;
 
 export const habitsApi = {
   list(params?: Record<string, unknown>): Promise<PaginatedResponse<Habit>> {

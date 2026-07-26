@@ -51,6 +51,9 @@ export async function autoSkipJob(): Promise<void> {
         userId:     user.id,
         deletedAt:  null,
         isArchived: false,
+        // Event-based habits (e.g. "haircut") have no due-date schedule — they're logged
+        // whenever the event happens, never auto-marked as missed.
+        habitType:  'regular',
         startDate:  { lte: yesterday },
         OR: [{ endDate: null }, { endDate: { gte: yesterday } }],
       },

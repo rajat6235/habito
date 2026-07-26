@@ -38,26 +38,26 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Wellness',
     items: [
       { label: 'Recovery',     href: '/app/recovery',     icon: Shield },
-      { label: 'Gym',          href: '/app/gym',          icon: Dumbbell,  soon: true },
+      // { label: 'Gym',          href: '/app/gym',          icon: Dumbbell,  soon: true },
     ],
   },
   {
     label: 'Organize',
     items: [
-      { label: 'Goals',        href: '/app/goals',        icon: Target },
+      // { label: 'Goals',        href: '/app/goals',        icon: Target },
       { label: 'Expenses',     href: '/app/expenses',     icon: Wallet },
-      { label: 'Notes',        href: '/app/notes',        icon: StickyNote, soon: true },
+      // { label: 'Notes',        href: '/app/notes',        icon: StickyNote, soon: true },
       { label: 'Planner',      href: '/app/planner',      icon: Calendar },
       { label: 'Calendar',     href: '/app/calendar',     icon: CalendarDays },
     ],
   },
-  {
-    label: 'Insights',
-    items: [
-      { label: 'Analytics',    href: '/app/analytics',    icon: BarChart2,  soon: true },
-      { label: 'Achievements', href: '/app/achievements', icon: Trophy,     soon: true },
-    ],
-  },
+  // {
+  //   label: 'Insights',
+  //   items: [
+  //     { label: 'Analytics',    href: '/app/analytics',    icon: BarChart2,  soon: true },
+  //     { label: 'Achievements', href: '/app/achievements', icon: Trophy,     soon: true },
+  //   ],
+  // },
 ];
 
 const SETTINGS_ITEM: NavItem = { label: 'Settings', href: '/app/settings', icon: Settings };

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { HabitFrequency, HabitLogStatus, Prisma } from '@prisma/client';
+import { HabitFrequency, HabitLogStatus, HabitType, Prisma } from '@prisma/client';
 import { container } from '../../../container';
 import { prisma } from '../../../config/database';
 import { AppError } from '../../../errors/AppError';
@@ -13,7 +13,7 @@ import {
   HabitLogsQuery,
   CreateCategoryInput,
 } from './habits.validation';
-import { recalculateHabitStreak } from '../../../services/streak.service';
+import { recalculateHabitStreak, StreakResult } from '../../../services/streak.service';
 
 const habitRepo = container.habitRepository;
 
@@ -23,6 +23,19 @@ function getTimesPerDay(frequencyConfig: Record<string, unknown>): number {
   if (type === 'custom_daily' && typeof tpd === 'number') return tpd;
   if (type === 'twice_daily') return 2;
   return 1;
+}
+
+// Event-based habits have no streak concept — persist only totalCompletions/lastCompletedDate
+// from a source-of-truth recalculation; regular habits also persist the streak fields.
+function streakUpdateData(habitType: HabitType, streak: StreakResult) {
+  return habitType === 'event'
+    ? { totalCompletions: streak.totalCompletions, lastCompletedDate: streak.lastCompletedDate }
+    : {
+        totalCompletions: streak.totalCompletions,
+        currentStreak:    streak.currentStreak,
+        longestStreak:    streak.longestStreak,
+        lastCompletedDate: streak.lastCompletedDate,
+      };
 }
 
 // ── Categories ────────────────────────────────────────────────────────────────
@@ -71,12 +84,13 @@ export async function createCategory(req: Request, res: Response, next: NextFunc
 export async function listHabits(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = req.query as unknown as ListHabitsQuery;
-    const { archived, categoryId, cursor, limit } = query;
+    const { archived, categoryId, habitType, cursor, limit } = query;
 
     const results = await habitRepo.findAll(req.user!.id, {
       limit,
       ...(archived   !== undefined ? { isArchived: archived }  : {}),
       ...(categoryId !== undefined ? { categoryId }             : {}),
+      ...(habitType  !== undefined ? { habitType }               : {}),
       ...(cursor     !== undefined ? { cursor }                 : {}),
     });
 
@@ -92,18 +106,21 @@ export async function listHabits(req: Request, res: Response, next: NextFunction
 
 export async function createHabit(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const body         = req.body as CreateHabitInput;
-    const frequencyType = body.frequencyConfig.type as HabitFrequency;
+    const body = req.body as CreateHabitInput;
+    // Event-based habits have no schedule — frequencyType/frequencyConfig only apply to
+    // regular habits (validation already guarantees frequencyConfig is present when needed).
+    const frequencyType = body.habitType === 'event' ? undefined : (body.frequencyConfig!.type as HabitFrequency);
 
     const habit = await prisma.habit.create({
       data: {
         user:            { connect: { id: req.user!.id } },
         title:           body.title,
-        frequencyType,
-        frequencyConfig: body.frequencyConfig as Prisma.InputJsonValue,
+        habitType:       body.habitType,
         priority:        body.priority,
         reminderEnabled: body.reminderEnabled,
         startDate:       body.startDate ? new Date(body.startDate) : new Date(),
+        ...(frequencyType       !== undefined ? { frequencyType }                                                : {}),
+        ...(body.frequencyConfig !== undefined ? { frequencyConfig: body.frequencyConfig as Prisma.InputJsonValue } : {}),
         ...(body.categoryId     ? { category:      { connect: { id: body.categoryId } } } : {}),
         ...(body.description   !== undefined ? { description:   body.description }   : {}),
         ...(body.icon          !== undefined ? { icon:          body.icon }           : {}),
@@ -216,7 +233,9 @@ export async function logHabit(req: Request, res: Response, next: NextFunction):
     const habit = await habitRepo.findById(id, req.user!.id);
     if (!habit) throw AppError.notFound('Habit');
 
-    const timesPerDay = getTimesPerDay(habit.frequencyConfig as Record<string, unknown>);
+    // Event-based habits (e.g. "haircut") aren't logged multiple times a day — one
+    // occurrence per date, same as the unique [habitId, logDate] constraint already enforces.
+    const timesPerDay = habit.habitType === 'event' ? 1 : getTimesPerDay(habit.frequencyConfig as Record<string, unknown>);
 
     // Atomic read-modify-write inside a transaction to prevent race conditions
     const result = await prisma.$transaction(async (tx) => {
@@ -263,34 +282,50 @@ export async function logHabit(req: Request, res: Response, next: NextFunction):
 
       const wasAlreadyCompleted = existingLog?.status === 'completed';
       if (resolvedStatus === 'completed' && !wasAlreadyCompleted) {
-        // Correct streak calculation: only continue if last completion was yesterday
-        const lastCompleted = habit.lastCompletedDate;
-        const yesterday     = new Date(logDate);
-        yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-        const lastStr      = lastCompleted ? new Date(lastCompleted).toISOString().slice(0, 10) : null;
-        const yesterdayStr = yesterday.toISOString().slice(0, 10);
-        const logDateStr   = logDate.toISOString().slice(0, 10);
+        if (habit.habitType === 'event') {
+          // Event-based habits have no streak concept — just track total occurrences and
+          // the most recent one. logDate may be backdated (older than the current
+          // lastCompletedDate), so only advance the "last occurrence" if it's actually newer.
+          const lastCompleted = habit.lastCompletedDate;
+          const isNewerOccurrence = !lastCompleted || logDate > new Date(lastCompleted);
 
-        let newStreak: number;
-        if (!lastStr) {
-          newStreak = 1; // First ever completion
-        } else if (lastStr === logDateStr) {
-          newStreak = habit.currentStreak; // Already counted today (defensive)
-        } else if (lastStr === yesterdayStr) {
-          newStreak = habit.currentStreak + 1; // Consecutive day
+          await tx.habit.update({
+            where: { id },
+            data: {
+              totalCompletions: { increment: 1 },
+              ...(isNewerOccurrence ? { lastCompletedDate: logDate } : {}),
+            },
+          });
         } else {
-          newStreak = 1; // Streak broken — gap in completions
-        }
+          // Correct streak calculation: only continue if last completion was yesterday
+          const lastCompleted = habit.lastCompletedDate;
+          const yesterday     = new Date(logDate);
+          yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+          const lastStr      = lastCompleted ? new Date(lastCompleted).toISOString().slice(0, 10) : null;
+          const yesterdayStr = yesterday.toISOString().slice(0, 10);
+          const logDateStr   = logDate.toISOString().slice(0, 10);
 
-        await tx.habit.update({
-          where: { id },
-          data: {
-            totalCompletions:  { increment: 1 },
-            currentStreak:     newStreak,
-            longestStreak:     Math.max(newStreak, habit.longestStreak),
-            lastCompletedDate: logDate,
-          },
-        });
+          let newStreak: number;
+          if (!lastStr) {
+            newStreak = 1; // First ever completion
+          } else if (lastStr === logDateStr) {
+            newStreak = habit.currentStreak; // Already counted today (defensive)
+          } else if (lastStr === yesterdayStr) {
+            newStreak = habit.currentStreak + 1; // Consecutive day
+          } else {
+            newStreak = 1; // Streak broken — gap in completions
+          }
+
+          await tx.habit.update({
+            where: { id },
+            data: {
+              totalCompletions:  { increment: 1 },
+              currentStreak:     newStreak,
+              longestStreak:     Math.max(newStreak, habit.longestStreak),
+              lastCompletedDate: logDate,
+            },
+          });
+        }
       }
 
       return { log: upserted, completionCount: newCount };
@@ -329,12 +364,7 @@ export async function updateLog(req: Request, res: Response, next: NextFunction)
       const streak = await recalculateHabitStreak(id);
       await prisma.habit.update({
         where: { id },
-        data: {
-          totalCompletions:  streak.totalCompletions,
-          currentStreak:     streak.currentStreak,
-          longestStreak:     streak.longestStreak,
-          lastCompletedDate: streak.lastCompletedDate,
-        },
+        data:  streakUpdateData(habit.habitType, streak),
       });
     }
 
@@ -364,12 +394,7 @@ export async function deleteLog(req: Request, res: Response, next: NextFunction)
       const streak = await recalculateHabitStreak(id);
       await prisma.habit.update({
         where: { id },
-        data: {
-          totalCompletions:  streak.totalCompletions,
-          currentStreak:     streak.currentStreak,
-          longestStreak:     streak.longestStreak,
-          lastCompletedDate: streak.lastCompletedDate,
-        },
+        data:  streakUpdateData(habit.habitType, streak),
       });
     }
 
@@ -453,6 +478,54 @@ export async function getHabitStats(req: Request, res: Response, next: NextFunct
       customFieldValues: (l.customFieldValues ?? {}) as Record<string, unknown>,
     }));
 
+    if (habit.habitType === 'event') {
+      // Frequency stats instead of streak stats — computed from ALL-time occurrences, not
+      // just the 90-day heatmap window, since gaps between events (e.g. haircuts) routinely
+      // exceed 90 days.
+      const occurrences = await prisma.habitLog.findMany({
+        where:   { habitId: id, status: 'completed' },
+        orderBy: { logDate: 'asc' },
+        select:  { logDate: true },
+      });
+      const dates = occurrences.map(o => o.logDate);
+      const lastOccurrence = dates.at(-1) ?? null;
+
+      const gaps: number[] = [];
+      for (let i = 1; i < dates.length; i++) {
+        gaps.push(Math.round((dates[i]!.getTime() - dates[i - 1]!.getTime()) / 86_400_000));
+      }
+
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfYear  = new Date(now.getFullYear(), 0, 1);
+
+      // Heal denormalized fields from source of truth, same pattern as the regular-habit path.
+      if (habit.totalCompletions !== dates.length
+        || (habit.lastCompletedDate?.getTime() ?? null) !== (lastOccurrence?.getTime() ?? null)) {
+        await prisma.habit.update({
+          where: { id },
+          data:  { totalCompletions: dates.length, lastCompletedDate: lastOccurrence },
+        });
+      }
+
+      sendSuccess(res, {
+        habitId:                 id,
+        title:                   habit.title,
+        habitType:               'event',
+        totalCompletions:        dates.length,
+        lastOccurrence:          lastOccurrence ? lastOccurrence.toISOString().split('T')[0] : null,
+        daysSinceLastOccurrence: lastOccurrence ? Math.floor((now.getTime() - lastOccurrence.getTime()) / 86_400_000) : null,
+        occurrencesThisMonth:    dates.filter(d => d >= startOfMonth).length,
+        occurrencesThisYear:     dates.filter(d => d >= startOfYear).length,
+        averageIntervalDays:     gaps.length > 0 ? Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length) : null,
+        longestGapDays:          gaps.length > 0 ? Math.max(...gaps) : null,
+        shortestGapDays:         gaps.length > 0 ? Math.min(...gaps) : null,
+        last30Days:              last30Logs.length,
+        last7Days:               last7Logs.length,
+        heatmap,
+      });
+      return;
+    }
+
     const byDayOfWeek = [0, 1, 2, 3, 4, 5, 6].map(day => {
       const dayLogs = allLogs.filter(l => new Date(l.logDate).getDay() === day);
       const count   = dayLogs.filter(l => l.status === 'completed').length;
@@ -479,6 +552,7 @@ export async function getHabitStats(req: Request, res: Response, next: NextFunct
     sendSuccess(res, {
       habitId:            id,
       title:              habit.title,
+      habitType:          'regular' as const,
       currentStreak:      liveStreak.currentStreak,
       longestStreak:      liveStreak.longestStreak,
       totalCompletions:   liveStreak.totalCompletions,

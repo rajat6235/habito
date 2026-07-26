@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateHabit, useHabitCategories } from '@/hooks/api/useHabits';
+import { useCreateHabit, useHabitCategories, useLogHabit } from '@/hooks/api/useHabits';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils';
 import { Sparkles } from 'lucide-react';
 import { useUiStore } from '@/stores/ui.store';
 import { createHabitSchema, type CreateHabitForm } from '../habits.schemas';
-import { PRESET_ICONS, PRESET_COLORS } from '../habits.constants';
+import { PRESET_ICONS, PRESET_COLORS, HABIT_TYPES } from '../habits.constants';
 import { CustomFieldsBuilder } from './CustomFieldsBuilder';
 import { TemplateGallery } from './TemplateGallery';
 import type { CustomFieldDef } from '@shared/types/customFields';
@@ -31,6 +31,7 @@ interface CreateHabitSheetProps {
 
 export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
   const createHabit = useCreateHabit();
+  const logHabit     = useLogHabit();
   const { data: categories = [] } = useHabitCategories();
   const [customFields,     setCustomFields]     = useState<CustomFieldDef[]>([]);
   const [galleryOpen,      setGalleryOpen]      = useState(false);
@@ -48,6 +49,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
   }
 
   async function onSubmit(values: CreateHabitForm) {
+    const isEvent = values.habitType === 'event';
     const timesPerDay      = values.timesPerDay ?? 1;
     const frequencyConfig  = timesPerDay > 1
       ? { type: 'custom_daily', timesPerDay }
@@ -55,15 +57,23 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
 
     try {
       const validCustomFields = customFields.filter(f => f.name.trim().length > 0);
-      await createHabit.mutateAsync({
+      const habit = await createHabit.mutateAsync({
         title:           values.title.trim(),
         description:     values.description,
         categoryId:      values.categoryId || undefined,
         icon:            values.icon || undefined,
         color:           values.color || undefined,
-        frequencyConfig,
+        habitType:       values.habitType,
+        ...(isEvent ? {} : { frequencyConfig }),
         customFields:    validCustomFields.length > 0 ? validCustomFields : undefined,
       });
+
+      // Event-based habits: optionally seed the first occurrence so "last done" isn't
+      // blank right after creating a habit for something already done before.
+      if (isEvent && values.lastDoneOn) {
+        await logHabit.mutateAsync({ id: habit.id, payload: { date: values.lastDoneOn, status: 'completed' } });
+      }
+
       reset();
       setCustomFields([]);
       setGalleryOpen(false);
@@ -77,6 +87,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
   const watchedIcon  = watch('icon');
   const watchedColor = watch('color');
   const watchedTimes = watch('timesPerDay') ?? 1;
+  const watchedType  = watch('habitType') ?? 'regular';
 
   return (
     <>
@@ -121,26 +132,68 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
               />
             </div>
 
-            {/* Times per day */}
+            {/* Habit type */}
             <div className="space-y-1.5">
-              <Label htmlFor="habit-times">Times per day</Label>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="habit-times"
-                  type="number"
-                  min={1}
-                  max={20}
-                  className="w-24"
-                  aria-describedby="habit-times-hint"
-                  {...register('timesPerDay')}
-                />
-                <p id="habit-times-hint" className="text-xs text-muted-foreground flex-1">
-                  {Number(watchedTimes) > 1
-                    ? `Card shows ${watchedTimes}× counter`
-                    : 'Default — one completion per day'}
-                </p>
+              <Label>Habit type</Label>
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Choose a habit type">
+                {HABIT_TYPES.map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    aria-pressed={watchedType === t.key}
+                    onClick={() => setValue('habitType', t.key)}
+                    className={cn(
+                      'text-left px-3 py-2.5 rounded-xl border transition-all',
+                      watchedType === t.key
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border hover:border-primary/40',
+                    )}
+                  >
+                    <p className="text-sm font-medium">{t.label}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{t.description}</p>
+                  </button>
+                ))}
               </div>
             </div>
+
+            {/* Times per day — regular habits only, event-based habits have no schedule */}
+            {watchedType === 'regular' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="habit-times">Times per day</Label>
+                <div className="flex items-center gap-3">
+                  <Input
+                    id="habit-times"
+                    type="number"
+                    min={1}
+                    max={20}
+                    className="w-24"
+                    aria-describedby="habit-times-hint"
+                    {...register('timesPerDay')}
+                  />
+                  <p id="habit-times-hint" className="text-xs text-muted-foreground flex-1">
+                    {Number(watchedTimes) > 1
+                      ? `Card shows ${watchedTimes}× counter`
+                      : 'Default — one completion per day'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Last done on — event-based habits only, optional */}
+            {watchedType === 'event' && (
+              <div className="space-y-1.5">
+                <Label htmlFor="habit-last-done">Last done on (optional)</Label>
+                <Input
+                  id="habit-last-done"
+                  type="date"
+                  max={new Date().toISOString().slice(0, 10)}
+                  {...register('lastDoneOn')}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Already done this before? Log the most recent one now.
+                </p>
+              </div>
+            )}
 
             {/* Icon */}
             <div className="space-y-1.5">

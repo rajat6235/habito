@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { Plus, Sparkles } from 'lucide-react';
 
-import { useTodayHabits, useLogHabit } from '@/hooks/api/useHabits';
+import { useTodayHabits, useLogHabit, useHabits } from '@/hooks/api/useHabits';
 import { useAuth } from '@/hooks/useAuth';
 import { HabitCard } from '@/components/shared/HabitCard';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -19,6 +19,7 @@ import { HabitHistorySheet } from './components/HabitHistorySheet';
 import { CreateHabitSheet } from './components/CreateHabitSheet';
 import { DeleteHabitConfirm } from './components/DeleteHabitConfirm';
 import { ProgressRing } from './components/ProgressRing';
+import { EventHabitCard } from './components/EventHabitCard';
 import { isCompleted } from './utils/habitUtils';
 import { FILTER_TABS, fadeUp, stagger, type FilterKey } from './habits.constants';
 
@@ -58,6 +59,12 @@ export function HabitsView() {
   const { data: todayHabits = [], isLoading, isError } = useTodayHabits(today);
   const logMutation = useLogHabit();
 
+  const { data: eventHabitPages } = useHabits({ habitType: 'event' });
+  const eventHabits = useMemo(
+    () => eventHabitPages?.pages.flatMap((p) => p.data) ?? [],
+    [eventHabitPages],
+  );
+
   const completed = todayHabits.filter(isCompleted).length;
   const total     = todayHabits.length;
   const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -87,6 +94,13 @@ export function HabitsView() {
   const handleLog = useCallback((habit: Habit) => {
     setLogHabit(habit);
   }, []);
+
+  const handleLogNow = useCallback((habit: Habit) => {
+    logMutation.mutate({
+      id:      habit.id,
+      payload: { date: dateStr, status: 'completed' },
+    });
+  }, [logMutation, dateStr]);
 
   return (
     <div className="relative min-h-full">
@@ -255,6 +269,30 @@ export function HabitsView() {
               ))}
             </motion.div>
           </AnimatePresence>
+        )}
+
+        {/* ── Event-based habits ── logged whenever they happen, no daily schedule */}
+        {eventHabits.length > 0 && (
+          <motion.div variants={fadeUp} className="space-y-2 pt-2">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground px-0.5">
+              Event-based
+            </p>
+            <div className="space-y-2">
+              {eventHabits.map((habit) => (
+                <EventHabitCard
+                  key={habit.id}
+                  habit={habit}
+                  onLogNow={handleLogNow}
+                  onHistory={(h) => setHistoryHabit(h)}
+                  onDelete={(h) => setDeleteHabit(h)}
+                  loading={
+                    logMutation.isPending &&
+                    (logMutation.variables as { id: string })?.id === habit.id
+                  }
+                />
+              ))}
+            </div>
+          </motion.div>
         )}
       </motion.div>
 

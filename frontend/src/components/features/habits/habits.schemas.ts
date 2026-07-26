@@ -9,6 +9,7 @@ export const createHabitSchema = z.object({
     (v) => (typeof v === 'string' && v === '' ? undefined : v),
     z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Invalid colour').optional(),
   ),
+  habitType:   z.enum(['regular', 'event']).default('regular'),
   timesPerDay: z.preprocess(
     (v) => {
       if (v === '' || v === undefined || v === null) return 1;
@@ -17,6 +18,9 @@ export const createHabitSchema = z.object({
     },
     z.number().int().min(1).max(20),
   ),
+  // Event-based habits only — optionally seed the first log so "last done" isn't blank
+  // immediately after creating a habit for something the user has obviously done before.
+  lastDoneOn: z.string().optional(),
 });
 
 export const logHabitSchema = z.object({

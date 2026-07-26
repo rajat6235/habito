@@ -96,6 +96,8 @@ export interface HabitCategory {
   sortOrder: number;
 }
 
+export type HabitType = 'regular' | 'event';
+
 export interface Habit {
   id:               string;
   title:            string;
@@ -104,7 +106,9 @@ export interface Habit {
   category:         HabitCategory | null;
   icon:             string | null;
   color:            string | null;
-  frequencyType:    string;
+  habitType:        HabitType;
+  // null for event-based habits — they have no schedule
+  frequencyType:    string | null;
   frequencyConfig:  Record<string, unknown>;
   priority:         'low' | 'medium' | 'high';
   reminderEnabled:  boolean;
@@ -139,17 +143,38 @@ export interface HabitLog {
   customFieldValues?: Record<string, unknown>;
 }
 
-export interface HabitStats {
-  habitId:         string;
-  title:           string;
-  currentStreak:   number;
-  longestStreak:   number;
+export interface RegularHabitStats {
+  habitId:          string;
+  title:            string;
+  habitType:        'regular';
+  currentStreak:    number;
+  longestStreak:    number;
   totalCompletions: number;
-  successRate:     number;
-  heatmap:         HeatmapDay[];
-  byDayOfWeek:     { day: number; count: number; rate: number }[];
-  trend:           { date: string; completed: boolean; value: number | null }[];
+  successRate:      number;
+  last30Days:       number;
+  last7Days:        number;
+  heatmap:          HeatmapDay[];
+  byDayOfWeek:      { day: number; count: number; rate: number }[];
 }
+
+export interface EventHabitStats {
+  habitId:                 string;
+  title:                   string;
+  habitType:               'event';
+  totalCompletions:        number;
+  lastOccurrence:          string | null;
+  daysSinceLastOccurrence: number | null;
+  occurrencesThisMonth:    number;
+  occurrencesThisYear:     number;
+  averageIntervalDays:     number | null;
+  longestGapDays:          number | null;
+  shortestGapDays:         number | null;
+  last30Days:              number;
+  last7Days:               number;
+  heatmap:                 HeatmapDay[];
+}
+
+export type HabitStats = RegularHabitStats | EventHabitStats;
 
 export interface HeatmapDay {
   date:               string;

@@ -42,13 +42,16 @@ const reminderConfigSchema = z.object({
   channels: z.array(z.enum(['inApp', 'email', 'push'])).default(['inApp']),
 });
 
-export const createHabitSchema = z.object({
+const createHabitObjectSchema = z.object({
   title:           z.string().min(1).max(200).trim(),
   description:     z.string().max(1000).trim().optional(),
   categoryId:      z.string().uuid().optional(),
   icon:            z.string().max(100).optional(),
   color:           z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
-  frequencyConfig: frequencyConfigSchema,
+  // Event-based habits ("haircut", "car service") have no schedule — frequencyConfig only
+  // applies to regular habits, enforced below.
+  habitType:       z.enum(['regular', 'event']).default('regular'),
+  frequencyConfig: frequencyConfigSchema.optional(),
   priority:        z.enum(['low', 'medium', 'high']).default('medium'),
   reminderEnabled: z.boolean().default(false),
   reminderConfig:  reminderConfigSchema.optional(),
@@ -57,7 +60,17 @@ export const createHabitSchema = z.object({
   customFields:    z.array(customFieldDefSchema).max(50).optional(),
 });
 
-export const updateHabitSchema = createHabitSchema.partial();
+export const createHabitSchema = createHabitObjectSchema.superRefine((data, ctx) => {
+  if (data.habitType === 'regular' && !data.frequencyConfig) {
+    ctx.addIssue({
+      code:    z.ZodIssueCode.custom,
+      message: 'frequencyConfig is required for regular habits',
+      path:    ['frequencyConfig'],
+    });
+  }
+});
+
+export const updateHabitSchema = createHabitObjectSchema.partial();
 
 export const logHabitSchema = z.object({
   date:              z.string().date(),
@@ -87,6 +100,7 @@ export const habitLogsQuerySchema = z.object({
 export const listHabitsQuerySchema = z.object({
   archived:   z.enum(['true', 'false']).transform(v => v === 'true').optional(),
   categoryId: z.string().uuid().optional(),
+  habitType:  z.enum(['regular', 'event']).optional(),
   cursor:     z.string().optional(),
   limit:      z.coerce.number().int().min(1).max(100).default(20),
 });

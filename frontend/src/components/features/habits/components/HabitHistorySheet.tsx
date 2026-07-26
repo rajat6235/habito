@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { History, Calendar, BarChart2, Activity, Flame } from 'lucide-react';
+import { History, Calendar, BarChart2, Activity, Flame, Clock } from 'lucide-react';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
@@ -26,8 +26,10 @@ export function HabitHistorySheet({ habit, onClose }: HabitHistorySheetProps) {
 
   // Use live stats so header reflects actual log count, not stale denormalized values
   const { data: stats } = useHabitStats(habit?.id ?? '');
-  const currentStreak   = stats?.currentStreak   ?? 0;
-  const totalCompletions = stats?.totalCompletions ?? 0;
+  const isEvent           = habit?.habitType === 'event';
+  const currentStreak     = stats && stats.habitType === 'regular' ? stats.currentStreak : 0;
+  const daysSinceLast     = stats && stats.habitType === 'event' ? stats.daysSinceLastOccurrence : null;
+  const totalCompletions  = stats?.totalCompletions ?? 0;
 
   return (
     <>
@@ -49,13 +51,18 @@ export function HabitHistorySheet({ habit, onClose }: HabitHistorySheetProps) {
               <div className="flex-1 min-w-0">
                 <SheetTitle className="text-base leading-snug">{habit?.title}</SheetTitle>
                 <SheetDescription className="flex items-center gap-2 mt-0.5">
-                  {currentStreak > 0 && (
+                  {isEvent ? (
+                    <span className="flex items-center gap-1 text-primary font-semibold">
+                      <Clock className="h-3 w-3" aria-hidden />
+                      {daysSinceLast != null ? `${daysSinceLast}d ago` : 'Not logged yet'}
+                    </span>
+                  ) : currentStreak > 0 && (
                     <span className="flex items-center gap-1 text-amber-500 font-semibold">
                       <Flame className="h-3 w-3" aria-hidden />
                       {currentStreak}d streak
                     </span>
                   )}
-                  {currentStreak > 0 && totalCompletions > 0 && (
+                  {(isEvent || currentStreak > 0) && totalCompletions > 0 && (
                     <span className="text-muted-foreground/40">·</span>
                   )}
                   {totalCompletions > 0 && (

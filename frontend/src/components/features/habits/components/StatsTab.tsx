@@ -1,12 +1,13 @@
 'use client';
 
 import { useMemo } from 'react';
-import { format, subDays, parseISO } from 'date-fns';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { format, subDays } from 'date-fns';
+import { TrendingUp, TrendingDown, Minus, Flame, Clock, Repeat } from 'lucide-react';
 import { useHabitStats } from '@/hooks/api/useHabits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { NUMERIC_FIELD_TYPES, type CustomFieldDef, type CustomFieldAggregate } from '@shared/types/customFields';
+import type { RegularHabitStatsResponse, EventHabitStatsResponse } from '@/lib/api/habits.api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -65,7 +66,53 @@ function buildHeatGrid(
   return weeks;
 }
 
-// ── Milestones ────────────────────────────────────────────────────────────────
+function HeatmapSection({ heatGrid, title, showSkipFail }: {
+  heatGrid: ReturnType<typeof buildHeatGrid>;
+  title:    string;
+  showSkipFail: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
+        {title}
+      </p>
+      <div className="overflow-x-auto pb-1">
+        <div className="flex gap-px min-w-0" role="img" aria-label={title}>
+          {heatGrid.map((week, wi) => (
+            <div key={wi} className="flex flex-col gap-px">
+              {week.map((day, di) => {
+                const isToday = day.date === format(new Date(), 'yyyy-MM-dd');
+                return (
+                  <div
+                    key={di}
+                    title={day.date ? `${day.date}${day.status ? ' · ' + day.status : ''}` : undefined}
+                    className={cn(
+                      'h-[9px] w-[9px] rounded-[2px] transition-opacity',
+                      heatColor(day.status),
+                      isToday && 'ring-1 ring-primary ring-offset-[1px] ring-offset-background',
+                    )}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-muted inline-block" /> None</span>
+        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-violet-500 inline-block" /> {showSkipFail ? 'Done' : 'Logged'}</span>
+        {showSkipFail && (
+          <>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-400/60 inline-block" /> Skipped</span>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-red-400/70 inline-block" /> Failed</span>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Milestones (regular habits only) ─────────────────────────────────────────
 
 interface Milestone { emoji: string; label: string; unlocked: boolean }
 
@@ -135,52 +182,83 @@ function computeFieldAnalytics(
   }).filter(a => a.count > 0);
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+function FieldAnalyticsSection({ fieldAnalytics }: { fieldAnalytics: CustomFieldAggregate[] }) {
+  if (fieldAnalytics.length === 0) return null;
 
-export function StatsTab({ habitId, customFields = [] }: StatsTabProps) {
-  const { data, isLoading } = useHabitStats(habitId);
+  return (
+    <div className="space-y-3">
+      <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+        Custom Field Analytics
+      </p>
+      {fieldAnalytics.map(agg => {
+        const trendMax = Math.max(...agg.trend.map(t => t.value), 1);
+        return (
+          <div key={agg.fieldId} className="rounded-xl border border-border bg-card p-3.5 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold">{agg.fieldName}</span>
+              <span className="text-[10px] text-muted-foreground">{agg.count} entries</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5 text-center">
+              {[
+                { label: 'Total', val: agg.total,   color: 'text-foreground' },
+                { label: 'Avg',   val: agg.average, color: 'text-primary' },
+                { label: 'Min',   val: agg.min,     color: 'text-muted-foreground' },
+                { label: 'Max',   val: agg.max,     color: 'text-emerald-500' },
+              ].map(c => (
+                <div key={c.label} className="rounded-lg bg-muted/40 p-2">
+                  <p className="text-[9px] text-muted-foreground mb-0.5">{c.label}</p>
+                  <p className={cn('text-sm font-bold tabular-nums', c.color)}>{c.val}</p>
+                </div>
+              ))}
+            </div>
+            {agg.trend.length >= 3 && (
+              <div className="flex items-end gap-px h-10" role="img" aria-label={`${agg.fieldName} trend`}>
+                {agg.trend.map((t, i) => (
+                  <div
+                    key={i}
+                    className="flex-1 rounded-t bg-primary/50 min-h-[2px]"
+                    style={{ height: `${Math.max(2, Math.round((t.value / trendMax) * 36))}px` }}
+                    title={`${t.date}: ${t.value}`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-  const heatGrid   = useMemo(() => buildHeatGrid(data?.heatmap ?? [], 91), [data?.heatmap]);
+// ── Regular habit stats ───────────────────────────────────────────────────────
+
+function RegularStatsBody({ data, heatGrid, fieldAnalytics }: {
+  data: RegularHabitStatsResponse;
+  heatGrid: ReturnType<typeof buildHeatGrid>;
+  fieldAnalytics: CustomFieldAggregate[];
+}) {
   const milestones = useMemo(
-    () => computeMilestones(data?.currentStreak ?? 0, data?.longestStreak ?? 0, data?.totalCompletions ?? 0),
-    [data?.currentStreak, data?.longestStreak, data?.totalCompletions],
+    () => computeMilestones(data.currentStreak, data.longestStreak, data.totalCompletions),
+    [data.currentStreak, data.longestStreak, data.totalCompletions],
   );
   const unlockedCount = milestones.filter(m => m.unlocked).length;
 
-  const fieldAnalytics = useMemo(() => {
-    if (!data?.heatmap) return [];
-    return computeFieldAnalytics(data.heatmap, customFields ?? []);
-  }, [data?.heatmap, customFields]);
-
-  // Week-over-week comparison
   const wowDelta = useMemo(() => {
-    if (!data) return null;
     const diff = data.last7Days - (data.last30Days > 0 ? Math.round(data.last30Days / 4) : 0);
     return diff;
-  }, [data]);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3" aria-busy="true" aria-label="Loading stats">
-        {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
-      </div>
-    );
-  }
-
-  if (!data) return <p className="text-sm text-muted-foreground">No stats available.</p>;
+  }, [data.last7Days, data.last30Days]);
 
   const maxRate = Math.max(...(data.byDayOfWeek ?? []).map(d => d.rate), 1);
 
   return (
     <div className="space-y-6">
-
       {/* ── Key stats ── */}
       <div className="grid grid-cols-2 gap-2.5">
         {[
           { label: 'Current Streak', value: `${data.currentStreak}d`, sub: `Best: ${data.longestStreak}d`, color: 'text-amber-500' },
           { label: 'Total Done',     value: data.totalCompletions,    sub: `${data.successRate}% success`,  color: 'text-emerald-500' },
           { label: 'Last 7 Days',    value: `${data.last7Days}×`,
-            sub: wowDelta != null && wowDelta !== 0
+            sub: wowDelta !== 0
               ? `${wowDelta > 0 ? '+' : ''}${wowDelta} vs avg week`
               : 'vs monthly average',
             trend: wowDelta,
@@ -205,40 +283,7 @@ export function StatsTab({ habitId, customFields = [] }: StatsTabProps) {
         ))}
       </div>
 
-      {/* ── 90-Day Heatmap ── */}
-      <div>
-        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2">
-          90-Day Activity
-        </p>
-        <div className="overflow-x-auto pb-1">
-          <div className="flex gap-px min-w-0" role="img" aria-label="90-day activity heatmap">
-            {heatGrid.map((week, wi) => (
-              <div key={wi} className="flex flex-col gap-px">
-                {week.map((day, di) => {
-                  const isToday = day.date === format(new Date(), 'yyyy-MM-dd');
-                  return (
-                    <div
-                      key={di}
-                      title={day.date ? `${day.date}${day.status ? ' · ' + day.status : ''}` : undefined}
-                      className={cn(
-                        'h-[9px] w-[9px] rounded-[2px] transition-opacity',
-                        heatColor(day.status),
-                        isToday && 'ring-1 ring-primary ring-offset-[1px] ring-offset-background',
-                      )}
-                    />
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-3 mt-2 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-muted inline-block" /> None</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-violet-500 inline-block" /> Done</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-400/60 inline-block" /> Skipped</span>
-          <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-red-400/70 inline-block" /> Failed</span>
-        </div>
-      </div>
+      <HeatmapSection heatGrid={heatGrid} title="90-Day Activity" showSkipFail />
 
       {/* ── Day of Week ── */}
       <div>
@@ -292,50 +337,103 @@ export function StatsTab({ habitId, customFields = [] }: StatsTabProps) {
         </div>
       )}
 
-      {/* ── Custom Field Analytics ── */}
-      {fieldAnalytics.length > 0 && (
-        <div className="space-y-3">
-          <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-            Custom Field Analytics
-          </p>
-          {fieldAnalytics.map(agg => {
-            const trendMax = Math.max(...agg.trend.map(t => t.value), 1);
-            return (
-              <div key={agg.fieldId} className="rounded-xl border border-border bg-card p-3.5 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">{agg.fieldName}</span>
-                  <span className="text-[10px] text-muted-foreground">{agg.count} entries</span>
-                </div>
-                <div className="grid grid-cols-4 gap-1.5 text-center">
-                  {[
-                    { label: 'Total', val: agg.total,   color: 'text-foreground' },
-                    { label: 'Avg',   val: agg.average, color: 'text-primary' },
-                    { label: 'Min',   val: agg.min,     color: 'text-muted-foreground' },
-                    { label: 'Max',   val: agg.max,     color: 'text-emerald-500' },
-                  ].map(c => (
-                    <div key={c.label} className="rounded-lg bg-muted/40 p-2">
-                      <p className="text-[9px] text-muted-foreground mb-0.5">{c.label}</p>
-                      <p className={cn('text-sm font-bold tabular-nums', c.color)}>{c.val}</p>
-                    </div>
-                  ))}
-                </div>
-                {agg.trend.length >= 3 && (
-                  <div className="flex items-end gap-px h-10" role="img" aria-label={`${agg.fieldName} trend`}>
-                    {agg.trend.map((t, i) => (
-                      <div
-                        key={i}
-                        className="flex-1 rounded-t bg-primary/50 min-h-[2px]"
-                        style={{ height: `${Math.max(2, Math.round((t.value / trendMax) * 36))}px` }}
-                        title={`${t.date}: ${t.value}`}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <FieldAnalyticsSection fieldAnalytics={fieldAnalytics} />
     </div>
   );
+}
+
+// ── Event-based habit stats ───────────────────────────────────────────────────
+
+function EventStatsBody({ data, heatGrid, fieldAnalytics }: {
+  data: EventHabitStatsResponse;
+  heatGrid: ReturnType<typeof buildHeatGrid>;
+  fieldAnalytics: CustomFieldAggregate[];
+}) {
+  const tiles = [
+    {
+      label: 'Last occurrence',
+      value: data.daysSinceLastOccurrence != null
+        ? `${data.daysSinceLastOccurrence}d ago`
+        : 'Never',
+      sub: data.lastOccurrence ? format(new Date(data.lastOccurrence + 'T12:00:00'), 'MMM d, yyyy') : 'Not logged yet',
+      color: 'text-primary', icon: Clock,
+    },
+    { label: 'Total occurrences', value: data.totalCompletions, sub: 'all time', color: 'text-emerald-500', icon: Repeat },
+    { label: 'This month', value: data.occurrencesThisMonth, sub: 'occurrences', color: 'text-foreground', icon: null },
+    { label: 'This year', value: data.occurrencesThisYear, sub: 'occurrences', color: 'text-foreground', icon: null },
+  ];
+
+  const intervalTiles = [
+    { label: 'Average interval', value: data.averageIntervalDays != null ? `${data.averageIntervalDays}d` : '—' },
+    { label: 'Longest gap',      value: data.longestGapDays      != null ? `${data.longestGapDays}d`      : '—' },
+    { label: 'Shortest gap',     value: data.shortestGapDays     != null ? `${data.shortestGapDays}d`     : '—' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-2.5">
+        {tiles.map(s => (
+          <div key={s.label} className="rounded-xl border border-border bg-card p-3.5 space-y-1">
+            <p className="text-[11px] text-muted-foreground flex items-center gap-1">
+              {s.icon && <s.icon className="h-3 w-3" aria-hidden />}
+              {s.label}
+            </p>
+            <p className={cn('text-2xl font-black tabular-nums leading-none', s.color)}>{s.value}</p>
+            <p className="text-[10px] text-muted-foreground">{s.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <p className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
+          <Flame className="h-3 w-3" aria-hidden />
+          Interval between occurrences
+        </p>
+        {data.averageIntervalDays == null ? (
+          <p className="text-xs text-muted-foreground">Log at least two occurrences to see interval patterns.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-2">
+            {intervalTiles.map(t => (
+              <div key={t.label} className="text-center rounded-lg bg-muted/40 p-2.5">
+                <p className="text-sm font-bold tabular-nums">{t.value}</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">{t.label}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <HeatmapSection heatGrid={heatGrid} title="90-Day Occurrences" showSkipFail={false} />
+
+      <FieldAnalyticsSection fieldAnalytics={fieldAnalytics} />
+    </div>
+  );
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function StatsTab({ habitId, customFields = [] }: StatsTabProps) {
+  const { data, isLoading } = useHabitStats(habitId);
+
+  const heatGrid = useMemo(() => buildHeatGrid(data?.heatmap ?? [], 91), [data?.heatmap]);
+  const fieldAnalytics = useMemo(() => {
+    if (!data?.heatmap) return [];
+    return computeFieldAnalytics(data.heatmap, customFields ?? []);
+  }, [data?.heatmap, customFields]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3" aria-busy="true" aria-label="Loading stats">
+        {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
+      </div>
+    );
+  }
+
+  if (!data) return <p className="text-sm text-muted-foreground">No stats available.</p>;
+
+  if (data.habitType === 'event') {
+    return <EventStatsBody data={data} heatGrid={heatGrid} fieldAnalytics={fieldAnalytics} />;
+  }
+
+  return <RegularStatsBody data={data} heatGrid={heatGrid} fieldAnalytics={fieldAnalytics} />;
 }

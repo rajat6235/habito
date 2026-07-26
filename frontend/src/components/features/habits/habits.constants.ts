@@ -13,6 +13,11 @@ export const FILTER_TABS = [
 
 export type FilterKey = (typeof FILTER_TABS)[number]['key'];
 
+export const HABIT_TYPES = [
+  { key: 'regular', label: 'Regular habit', description: 'Complete on a schedule — builds a streak.' },
+  { key: 'event',   label: 'Event-based',   description: 'Log it whenever it happens — no schedule, no streak.' },
+] as const;
+
 export const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.055 } } };
 
 export const fadeUp = {

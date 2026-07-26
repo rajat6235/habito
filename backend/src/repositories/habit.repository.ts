@@ -15,6 +15,7 @@ export class HabitRepository extends BaseRepository {
   async findAll(userId: string, params: {
     isArchived?: boolean;
     categoryId?: string;
+    habitType?: $Enums.HabitType;
     cursor?: string;
     limit: number;
   }) {
@@ -24,6 +25,7 @@ export class HabitRepository extends BaseRepository {
         deletedAt: null,
         isArchived: params.isArchived ?? false,
         ...(params.categoryId ? { categoryId: params.categoryId } : {}),
+        ...(params.habitType  ? { habitType:  params.habitType }  : {}),
       },
       take: params.limit + 1,
       ...(params.cursor ? { cursor: { id: params.cursor }, skip: 1 } : {}),
@@ -34,6 +36,7 @@ export class HabitRepository extends BaseRepository {
         description:      true,
         icon:             true,
         color:            true,
+        habitType:        true,
         frequencyType:    true,
         frequencyConfig:  true,
         priority:         true,
@@ -155,13 +158,16 @@ export class HabitRepository extends BaseRepository {
     // issues that occur with nested relation filters on @db.Date columns.
     const [habits, logs] = await Promise.all([
       this.db.habit.findMany({
-        where: { userId, deletedAt: null, isArchived: false, startDate: { lte: today } },
+        // Event-based habits (e.g. "haircut") have no due-today concept — they never
+        // appear here, only in their own dedicated list (see habitType filter on findAll).
+        where: { userId, deletedAt: null, isArchived: false, startDate: { lte: today }, habitType: 'regular' },
         select: {
           id:               true,
           title:            true,
           description:      true,
           icon:             true,
           color:            true,
+          habitType:        true,
           frequencyType:    true,
           frequencyConfig:  true,
           priority:         true,
