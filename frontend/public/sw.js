@@ -1,11 +1,22 @@
 // Habito Service Worker
 // Strategy:
-//   - Static assets (JS/CSS/fonts): Cache First, 30-day TTL
+//   - Static assets (JS/CSS/fonts): Cache First, 30-day TTL (safe — filenames are content-hashed)
 //   - API requests:                 Network First, fall back to cache (5-min TTL)
-//   - Pages:                        Stale-While-Revalidate
+//   - Pages:                        Network First, fall back to cache (so navigations never
+//                                    load a page that references a chunk hash from a build
+//                                    that's no longer on the server)
 //   - Offline fallback:             /offline.html
-
-const CACHE_VERSION  = 'v2';
+//
+// IMPORTANT: bump CACHE_VERSION whenever this file's caching *behavior* changes (not just its
+// asset list) — it's what forces every existing install to discard old cache entries via the
+// `activate` cleanup below. Forgetting this is how stale clients get stuck.
+//
+// IMPORTANT: this worker only takes over an open tab when the tab explicitly asks it to (via the
+// SKIP_WAITING message below, wired to the in-app "Update available" banner). Never call
+// self.skipWaiting() unconditionally on install — that silently swaps the network layer under an
+// already-running session without reloading it, which is the #1 cause of blank-screen bugs in
+// PWAs that stay open across a deploy (extremely common on mobile, rare on desktop).
+const CACHE_VERSION  = 'v3';
 const STATIC_CACHE   = `habito-static-${CACHE_VERSION}`;
 const API_CACHE      = `habito-api-${CACHE_VERSION}`;
 const PAGE_CACHE     = `habito-pages-${CACHE_VERSION}`;
@@ -21,11 +32,12 @@ const WRITE_QUEUE_DB = 'habito-offline-queue';
 const WRITE_QUEUE_STORE = 'requests';
 
 // ── Install ──────────────────────────────────────────────────────────────────
+// Deliberately does NOT call self.skipWaiting() here — the new worker waits until the
+// client explicitly requests an update (see the SKIP_WAITING message handler below).
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(STATIC_CACHE)
-      .then((cache) => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting()),
+      .then((cache) => cache.addAll(STATIC_ASSETS)),
   );
 });
 
@@ -74,14 +86,24 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // HTML pages: Stale-While-Revalidate
+  // HTML pages: Network First — a navigation must never render a page that references
+  // static-asset hashes from a build that's no longer on the server. Only fall back to the
+  // cached shell when genuinely offline.
   if (event.request.headers.get('accept')?.includes('text/html')) {
-    event.respondWith(staleWhileRevalidate(event.request, PAGE_CACHE));
+    event.respondWith(networkFirst(event.request, PAGE_CACHE, 24 * 60 * 60));
     return;
   }
 });
 
 // ── Strategies ────────────────────────────────────────────────────────────────
+// A non-ok response (404, 500, ...) is still a legitimate response the app must be able to
+// see and handle — a 500 for a page is Next.js's own error boundary HTML, a 404 for an API
+// call is real application data. It must never be *cached* (so a transient error can't get
+// stuck being replayed later), but it must still be *returned* to the caller as-is. Only an
+// actual network failure (fetch throwing — offline, DNS, timeout) should fall back to cache.
+// The one exception is cacheFirst for hashed static assets: there, a cache-miss + non-ok
+// response means the referenced build no longer exists on the server, so the stale cached
+// entry (if any) is preferred over letting the browser try to execute a broken response body.
 async function cacheFirst(request, cacheName, maxAgeSeconds) {
   const cache    = await caches.open(cacheName);
   const cached   = await cache.match(request);
@@ -91,7 +113,8 @@ async function cacheFirst(request, cacheName, maxAgeSeconds) {
 
   try {
     const fresh = await fetch(request);
-    if (fresh.ok) await cache.put(request, fresh.clone());
+    if (!fresh.ok) return cached ?? fresh;
+    await cache.put(request, fresh.clone());
     return fresh;
   } catch {
     return cached ?? offlineFallback(request);

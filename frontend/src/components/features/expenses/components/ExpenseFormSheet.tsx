@@ -31,6 +31,8 @@ function blankItem(): ExpenseItemForm {
   return { name: '', quantity: undefined, unit: '', amount: undefined as unknown as number };
 }
 
+const UNIT_OPTIONS = ['ml', 'L', 'gm', 'kg', 'pcs', 'bottle', 'cup', 'plate', 'packet'] as const;
+
 export function ExpenseFormSheet({ open, expense, onClose }: ExpenseFormSheetProps) {
   const isEdit = Boolean(expense);
   const { data: categories = [] } = useExpenseCategories();
@@ -199,6 +201,7 @@ export function ExpenseFormSheet({ open, expense, onClose }: ExpenseFormSheetPro
                       />
                       <Input
                         placeholder="Unit"
+                        list="expense-unit-options"
                         aria-label={`Item ${index + 1} unit`}
                         {...register(`items.${index}.unit`)}
                       />
@@ -243,6 +246,10 @@ export function ExpenseFormSheet({ open, expense, onClose }: ExpenseFormSheetPro
               <Label htmlFor="expense-note">Note (optional)</Label>
               <Textarea id="expense-note" placeholder="Any context…" rows={2} {...register('note')} />
             </div>
+
+            <datalist id="expense-unit-options">
+              {UNIT_OPTIONS.map((unit) => <option key={unit} value={unit} />)}
+            </datalist>
           </div>
 
           <div className="p-5 border-t border-border shrink-0">
