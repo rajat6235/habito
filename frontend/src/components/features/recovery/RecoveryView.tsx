@@ -1,10 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { format } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Plus, Clock, AlertTriangle, ChevronRight, Play, Pause, Pencil, MoreHorizontal } from 'lucide-react';
-import { useRecoveryGoals, useCreateRecoveryGoal, useUpdateRecoveryGoal, useLogRelapse, usePauseResumeGoal, useSobrietyClock } from '@/hooks/api/useRecovery';
+import { Shield, Plus, Clock, AlertTriangle, ChevronRight, Play, Pause, Pencil, MoreHorizontal, History } from 'lucide-react';
+import { useRecoveryGoals, useCreateRecoveryGoal, useLogRelapse, usePauseResumeGoal, useSobrietyClock } from '@/hooks/api/useRecovery';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,13 +11,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { cn } from '@/lib/utils';
+import { RecoveryHistorySheet } from './components/RecoveryHistorySheet';
+import { EditStartDateSheet } from './components/EditStartDateSheet';
+import { toDatetimeLocalValue } from './utils/datetime';
 import type { RecoveryGoal } from '@/lib/api/recovery.api';
-
-// `datetime-local` inputs work in wall-clock time, not UTC — format/parse in local time.
-const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
-function toDatetimeLocalValue(iso: string): string {
-  return format(new Date(iso), DATETIME_LOCAL_FORMAT);
-}
 
 // ── Sobriety Clock ────────────────────────────────────────────────────────────
 
@@ -42,10 +38,11 @@ function SobrietyDisplay({ goalId, color }: { goalId: string; color?: string | n
 
 // ── Goal Card ─────────────────────────────────────────────────────────────────
 
-function GoalCard({ goal, onRelapseClick, onEditClick }: {
+function GoalCard({ goal, onRelapseClick, onEditClick, onHistoryClick }: {
   goal: RecoveryGoal;
-  onRelapseClick: (g: RecoveryGoal) => void;
-  onEditClick: (g: RecoveryGoal) => void;
+  onRelapseClick:  (g: RecoveryGoal) => void;
+  onEditClick:     (g: RecoveryGoal) => void;
+  onHistoryClick:  (g: RecoveryGoal) => void;
 }) {
   const pause = usePauseResumeGoal(goal.id);
 
@@ -81,7 +78,16 @@ function GoalCard({ goal, onRelapseClick, onEditClick }: {
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => onHistoryClick(goal)}
+            aria-label="View history"
+          >
+            <History className="h-3.5 w-3.5" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -215,60 +221,6 @@ function RelapseModal({ goal, onClose }: { goal: RecoveryGoal; onClose: () => vo
   );
 }
 
-// ── Edit Start Date Sheet ───────────────────────────────────────────────────
-
-function EditStartDateSheet({ goal, onClose }: { goal: RecoveryGoal; onClose: () => void }) {
-  const updateGoal = useUpdateRecoveryGoal(goal.id);
-  const [value, setValue] = useState(() => toDatetimeLocalValue(goal.startDate));
-
-  async function handleSave() {
-    if (!value) return;
-    await updateGoal.mutateAsync({ startDate: new Date(value).toISOString() });
-    onClose();
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        className="w-full sm:max-w-md rounded-2xl bg-card border border-border p-6 space-y-5 shadow-2xl"
-      >
-        <div>
-          <h3 className="font-bold text-lg">Edit start date</h3>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Backdate {goal.name} to when you actually started.
-          </p>
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="recovery-edit-start">Started on</Label>
-          <Input
-            id="recovery-edit-start"
-            type="datetime-local"
-            value={value}
-            max={toDatetimeLocalValue(new Date().toISOString())}
-            onChange={(e) => setValue(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button
-            className="flex-1"
-            onClick={handleSave}
-            disabled={!value}
-            loading={updateGoal.isPending}
-          >
-            Save
-          </Button>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
 // ── Create Goal Sheet ────────────────────────────────────────────────────────
 
 const PRESETS = [
@@ -389,6 +341,7 @@ export function RecoveryView() {
   const [showCreate,      setShowCreate]      = useState(false);
   const [relapsingGoal,   setRelapsingGoal]   = useState<RecoveryGoal | null>(null);
   const [editingGoal,     setEditingGoal]     = useState<RecoveryGoal | null>(null);
+  const [historyGoalId,   setHistoryGoalId]   = useState<string | null>(null);
 
   return (
     <>
@@ -437,7 +390,12 @@ export function RecoveryView() {
             <AnimatePresence>
               {goals.map((goal) => (
                 <motion.div key={goal.id} variants={fadeUp}>
-                  <GoalCard goal={goal} onRelapseClick={setRelapsingGoal} onEditClick={setEditingGoal} />
+                  <GoalCard
+                    goal={goal}
+                    onRelapseClick={setRelapsingGoal}
+                    onEditClick={setEditingGoal}
+                    onHistoryClick={(g) => setHistoryGoalId(g.id)}
+                  />
                 </motion.div>
               ))}
             </AnimatePresence>
@@ -455,6 +413,8 @@ export function RecoveryView() {
           <EditStartDateSheet goal={editingGoal} onClose={() => setEditingGoal(null)} />
         )}
       </AnimatePresence>
+
+      <RecoveryHistorySheet goalId={historyGoalId} onClose={() => setHistoryGoalId(null)} />
     </>
   );
 }

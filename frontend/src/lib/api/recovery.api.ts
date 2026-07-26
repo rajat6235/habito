@@ -23,14 +23,15 @@ export interface SobrietyClock {
 }
 
 export interface RelapseLog {
-  id:          string;
-  relapsedAt:  string;
-  moodBefore:  number | null;
-  triggers:    string[];
-  location:    string | null;
-  notes:       string | null;
-  planForNext: string | null;
-  createdAt:   string;
+  id:           string;
+  relapsedAt:   string;
+  moodBefore:   number | null;
+  triggers:     string[];
+  location:     string | null;
+  notes:        string | null;
+  planForNext:  string | null;
+  streakBroken: number;
+  createdAt:    string;
 }
 
 export interface CreateRecoveryGoalPayload {
@@ -89,7 +90,7 @@ export const recoveryApi = {
     return apiGet(`/recovery/${id}/clock`);
   },
 
-  getRelapses(id: string): Promise<RelapseLog[]> {
-    return apiGet(`/recovery/${id}/relapses`);
+  getRelapses(id: string, limit = 100): Promise<RelapseLog[]> {
+    return apiGet(`/recovery/${id}/relapses`, { limit });
   },
 };

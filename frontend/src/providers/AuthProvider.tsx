@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api/auth.api';
 import { useAuthStore } from '@/stores/auth.store';
 
@@ -20,10 +21,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+const PROTECTED_PREFIXES = ['/app', '/admin'];
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, clearAuth, setLoading, isLoading } = useAuthStore();
   const initialized = useRef(false);
   const [mounted, setMounted] = useState(false);
+  const pathname = usePathname();
+  const router    = useRouter();
 
   useEffect(() => {
     setMounted(true);
@@ -41,9 +46,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // request can never leave isLoading stuck true.
     withTimeout(authApi.refresh().then(() => authApi.getMe()), AUTH_BOOTSTRAP_TIMEOUT_MS)
       .then((profile) => setUser(profile))
-      .catch(() => clearAuth())
+      .catch(() => {
+        clearAuth();
+        // The lightweight "habito_session" flag cookie (client-set, 7/30-day expiry) can
+        // outlive the real server-side session — middleware only checks for its presence, so
+        // it will have already let this navigation through to a protected route before we
+        // knew the session was actually invalid. Clear the stale flags so middleware stops
+        // readmitting us, and bounce to login ourselves since middleware won't run again for
+        // a client-side-only state change. Without this, the page silently renders fully
+        // logged out with no data and nothing visibly wrong — the "blank screen after a
+        // while" symptom.
+        document.cookie = 'habito_session=; Max-Age=0; path=/';
+        document.cookie = 'habito_role=; Max-Age=0; path=/';
+        if (PROTECTED_PREFIXES.some((p) => pathname?.startsWith(p))) {
+          router.replace('/login?reason=session_expired');
+        }
+      })
       .finally(() => setLoading(false));
-  }, [setUser, clearAuth, setLoading]);
+  }, [setUser, clearAuth, setLoading, pathname, router]);
 
   // Show spinner only on the client (after mount) to avoid hydration mismatch.
   // Server always renders children; spinner appears after first paint.

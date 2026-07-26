@@ -85,6 +85,7 @@ export function useLogRelapse(goalId: string) {
   return useMutation({
     mutationFn: (payload: LogRelapsePayload) => recoveryApi.logRelapse(goalId, payload),
     onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEYS.all() });
       qc.invalidateQueries({ queryKey: KEYS.detail(goalId) });
       qc.invalidateQueries({ queryKey: KEYS.clock(goalId) });
       qc.invalidateQueries({ queryKey: KEYS.relapses(goalId) });
