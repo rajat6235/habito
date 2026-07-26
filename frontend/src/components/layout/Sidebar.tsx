@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard, CheckSquare, Shield, BookOpen, StickyNote,
   Dumbbell, Target, Calendar, CalendarDays, BarChart2,
-  Trophy, Settings, ChevronLeft, ChevronRight, LogOut, ShieldCheck,
+  Trophy, Settings, ChevronLeft, ChevronRight, LogOut, ShieldCheck, Wallet,
 } from 'lucide-react';
 import { cn, getInitials } from '@/lib/utils';
 import { useUiStore } from '@/stores/ui.store';
@@ -45,6 +45,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Organize',
     items: [
       { label: 'Goals',        href: '/app/goals',        icon: Target },
+      { label: 'Expenses',     href: '/app/expenses',     icon: Wallet },
       { label: 'Notes',        href: '/app/notes',        icon: StickyNote, soon: true },
       { label: 'Planner',      href: '/app/planner',      icon: Calendar },
       { label: 'Calendar',     href: '/app/calendar',     icon: CalendarDays },

@@ -364,6 +364,8 @@ model User {
   habitCategories        HabitCategory[]
   habits                 Habit[]
   habitLogs              HabitLog[]
+  expenseCategories      ExpenseCategory[]
+  expenses               Expense[]
   recoveryGoals          RecoveryGoal[]
   relapseLogs            RelapseLog[]
   journalEntries         JournalEntry[]
@@ -616,6 +618,64 @@ model HabitLog {
   @@index([userId, logDate])
   @@index([habitId, status])
   @@map("habit_logs")
+}
+
+// =============================================================================
+// EXPENSE CLUSTER
+// =============================================================================
+
+model ExpenseCategory {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  name      String   @db.VarChar(100)
+  color     String?  @db.VarChar(7)
+  icon      String?  @db.VarChar(100)
+  isGlobal  Boolean  @default(false) @map("is_global")
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expenses Expense[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  categoryId  String    @map("category_id") @db.Uuid
+  title       String?   @db.VarChar(200)
+  expenseDate DateTime  @map("expense_date") @db.Date
+  note        String?
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category ExpenseCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  items    ExpenseItem[]
+
+  @@index([userId, expenseDate])
+  @@index([categoryId])
+  @@map("expenses")
+}
+
+model ExpenseItem {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  expenseId String   @map("expense_id") @db.Uuid
+  name      String   @db.VarChar(200)
+  quantity  Decimal? @db.Decimal(10, 2)
+  unit      String?  @db.VarChar(50)
+  amount    Decimal  @db.Decimal(10, 2)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+  @@map("expense_items")
 }
 
 // =============================================================================

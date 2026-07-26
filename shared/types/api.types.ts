@@ -158,6 +158,54 @@ export interface HeatmapDay {
   customFieldValues?: Record<string, unknown>;
 }
 
+// ── Expenses ─────────────────────────────────────────────────────────────────
+
+export interface ExpenseCategory {
+  id:        string;
+  name:      string;
+  color:     string | null;
+  icon:      string | null;
+  isGlobal:  boolean;
+  sortOrder: number;
+}
+
+export interface ExpenseItem {
+  id:       string;
+  name:     string;
+  quantity: number | null;
+  unit:     string | null;
+  amount:   number;
+}
+
+export interface Expense {
+  id:         string;
+  categoryId: string;
+  category:   ExpenseCategory;
+  title:      string | null;
+  date:       string;
+  note:       string | null;
+  items:      ExpenseItem[];
+  total:      number;
+  createdAt:  string;
+  updatedAt:  string;
+}
+
+export interface ExpenseCategoryTotal {
+  categoryId: string;
+  name:       string;
+  color:      string | null;
+  icon:       string | null;
+  total:      number;
+}
+
+export interface ExpenseSummary {
+  today:      number;
+  thisWeek:   number;
+  thisMonth:  number;
+  thisYear:   number;
+  byCategory: ExpenseCategoryTotal[];
+}
+
 // ── Recovery ─────────────────────────────────────────────────────────────────
 
 export interface RecoveryGoal {

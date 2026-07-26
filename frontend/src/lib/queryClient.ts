@@ -54,6 +54,12 @@ export const queryKeys = {
     detail: (id: string) => ['recovery', id] as const,
     history:(id: string) => ['recovery', id, 'history'] as const,
   },
+  expenses: {
+    all:        (params?: Record<string, unknown>) => ['expenses', params] as const,
+    detail:     (id: string) => ['expenses', id] as const,
+    categories: () => ['expense-categories'] as const,
+    summary:    () => ['expenses', 'summary'] as const,
+  },
   journal: {
     all:    (params?: Record<string, unknown>) => ['journal', params] as const,
     date:   (date: string) => ['journal', 'date', date] as const,
