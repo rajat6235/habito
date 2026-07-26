@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter, JetBrains_Mono } from 'next/font/google';
 import { Providers } from '@/providers';
+import { BOOT_WATCHDOG_SCRIPT } from '@/lib/bootWatchdog';
 import './globals.css';
 
 const inter = Inter({
@@ -68,6 +69,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         {/* Prevent iOS phone number auto-detection */}
         <meta name="format-detection" content="telephone=no" />
+        {/* Dependency-free boot watchdog — see src/lib/bootWatchdog.ts for why this can't be a chunk. */}
+        <script dangerouslySetInnerHTML={{ __html: BOOT_WATCHDOG_SCRIPT }} />
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         <a

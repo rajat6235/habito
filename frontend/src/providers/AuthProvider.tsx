@@ -4,6 +4,22 @@ import { useEffect, useRef, useState } from 'react';
 import { authApi } from '@/lib/api/auth.api';
 import { useAuthStore } from '@/stores/auth.store';
 
+// Bootstrap must always settle — a request that never resolves (e.g. a fetch left in limbo
+// by a mobile OS suspending the page mid-flight while backgrounded) must not leave the app
+// stuck on the loading spinner forever. This bounds the whole bootstrap to a fixed budget,
+// independent of whatever the network/browser does.
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('Auth bootstrap timed out')), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      (err)   => { clearTimeout(timer); reject(err); },
+    );
+  });
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, clearAuth, setLoading, isLoading } = useAuthStore();
   const initialized = useRef(false);
@@ -21,10 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Refresh token → then fetch user profile sequentially
-    authApi
-      .refresh()
-      .then(() => authApi.getMe())
+    // Refresh token → then fetch user profile sequentially, bounded so a hung
+    // request can never leave isLoading stuck true.
+    withTimeout(authApi.refresh().then(() => authApi.getMe()), AUTH_BOOTSTRAP_TIMEOUT_MS)
       .then((profile) => setUser(profile))
       .catch(() => clearAuth())
       .finally(() => setLoading(false));
