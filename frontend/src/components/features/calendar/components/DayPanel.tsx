@@ -1,22 +1,28 @@
 'use client';
 
 import { useMemo } from 'react';
-import { format, parseISO, differenceInDays, isSameDay } from 'date-fns';
+import { useQueries } from '@tanstack/react-query';
+import { format, parseISO, isSameDay } from 'date-fns';
 import {
   CheckCircle2, Circle, BookOpen, ClipboardList, Target,
-  Shield, Flame, SkipForward, XCircle, Star,
+  Shield, Flame, SkipForward, XCircle, Star, Wallet, PartyPopper, Repeat,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
-import { useTodayHabits } from '@/hooks/api/useHabits';
+import { cn, formatCurrency } from '@/lib/utils';
+import { useTodayHabits, useHabits } from '@/hooks/api/useHabits';
 import { useJournalByDate } from '@/hooks/api/useJournal';
 import { usePlannerTasks } from '@/hooks/api/usePlanner';
 import { useGoals } from '@/hooks/api/useGoals';
 import { useRecoveryGoals } from '@/hooks/api/useRecovery';
+import { useExpenses } from '@/hooks/api/useExpenses';
+import { recoveryApi } from '@/lib/api/recovery.api';
+import { habitsApi } from '@/lib/api/habits.api';
+import { buildStreakSegments, getRecoveryDayInfo } from '@/components/features/recovery/utils/timeline';
+import { ALL_CALENDAR_MODULES, type CalendarModule } from '../calendar.constants';
 import type { HabitWithTodayLog } from '@shared/types/api.types';
 
 // ── Section wrapper ───────────────────────────────────────────────────────────
@@ -78,10 +84,12 @@ function MoodRow({ label, value }: { label: string; value: number }) {
 interface DayPanelProps {
   date:    Date | null;
   onClose: () => void;
+  active?: Set<CalendarModule>;
 }
 
-export function DayPanel({ date, onClose }: DayPanelProps) {
-  const open = Boolean(date);
+export function DayPanel({ date, onClose, active = ALL_CALENDAR_MODULES }: DayPanelProps) {
+  const open   = Boolean(date);
+  const dayStr = date ? format(date, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
 
   // All data hooks — enabled only when panel is open
   const { data: habitsRaw = [], isLoading: habitsLoading, isError: habitsError } = useTodayHabits(date ?? undefined);
@@ -93,7 +101,53 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
   const { data: goals   = [], isLoading: goalsLoading   } = useGoals();
   const { data: recovery= [], isLoading: recoveryLoading} = useRecoveryGoals();
 
-  const isLoading = habitsLoading || journalLoading || tasksLoading || goalsLoading || recoveryLoading;
+  // Recovery — reconstruct accurate per-day status from each goal's real relapse
+  // history (same utility RecoveryCalendarTab uses), instead of approximating.
+  const relapseQueries = useQueries({
+    queries: recovery.map((goal) => ({
+      queryKey: ['recovery', goal.id, 'relapses', 'day-panel'],
+      queryFn:  () => recoveryApi.getRelapses(goal.id),
+      staleTime: 30_000,
+      enabled:   open,
+    })),
+  });
+  const recoveryToday = useMemo(() => {
+    return recovery
+      .map((goal, i) => {
+        const relapses = relapseQueries[i]?.data ?? [];
+        const segments = buildStreakSegments(goal, relapses);
+        const info     = getRecoveryDayInfo(date ?? new Date(), goal, segments);
+        return { goal, info };
+      })
+      .filter((r) => r.info.status && r.info.status !== 'before-start');
+  }, [recovery, relapseQueries, date]);
+
+  // Event-based habits — logged occurrences on this specific day
+  const { data: eventHabitPages } = useHabits({ habitType: 'event' });
+  const eventHabitsList = useMemo(() => eventHabitPages?.pages.flatMap(p => p.data) ?? [], [eventHabitPages]);
+  const eventLogQueries = useQueries({
+    queries: eventHabitsList.map((habit) => ({
+      queryKey: ['habits', habit.id, 'logs', 'day-panel', dayStr],
+      queryFn:  () => habitsApi.getLogs(habit.id, { from: dayStr, to: dayStr, limit: 5 }),
+      staleTime: 60_000,
+      enabled:   open,
+    })),
+  });
+  const eventHabitsToday = useMemo(() => {
+    return eventHabitsList
+      .map((habit, i) => {
+        const log = eventLogQueries[i]?.data?.data.find(l => l.status === 'completed');
+        return { habit, log };
+      })
+      .filter((e) => e.log);
+  }, [eventHabitsList, eventLogQueries]);
+
+  // Expenses on this day
+  const { data: expensePages, isLoading: expensesLoading } = useExpenses({ from: dayStr, to: dayStr, limit: 20 });
+  const expensesToday = useMemo(() => expensePages?.pages.flatMap(p => p.data) ?? [], [expensePages]);
+  const expensesTotal = useMemo(() => expensesToday.reduce((s, e) => s + e.total, 0), [expensesToday]);
+
+  const isLoading = habitsLoading || journalLoading || tasksLoading || goalsLoading || recoveryLoading || expensesLoading;
 
   // Compute day score from habits
   const completedHabits = useMemo(
@@ -101,6 +155,8 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
     [habits],
   );
   const dayScore = habits.length > 0 ? Math.round((completedHabits / habits.length) * 100) : 0;
+  const hasRelapseToday = recoveryToday.some((r) => r.info.status === 'relapse');
+  const isPerfectDay = dayScore === 100 && habits.length > 0 && !hasRelapseToday;
 
   // Filter goals that have milestones completed on this date
   const relevantGoals = useMemo(() => {
@@ -115,12 +171,6 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
         return hasMilestoneToday || isDeadlineToday;
       });
   }, [goals, date]);
-
-  // Recovery goals with streak info
-  const activeRecovery = useMemo(
-    () => recovery.filter((g) => g.status === 'active'),
-    [recovery],
-  );
 
   const morningEntry = journal.find((e) => e.entryType === 'morning');
   const eveningEntry = journal.find((e) => e.entryType === 'evening');
@@ -162,7 +212,15 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <SheetTitle className="text-base leading-tight">{dateLabel}</SheetTitle>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <SheetTitle className="text-base leading-tight">{dateLabel}</SheetTitle>
+                {!isLoading && isPerfectDay && (
+                  <Badge className="text-[10px] h-4 px-1.5 gap-0.5 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
+                    <PartyPopper className="h-2.5 w-2.5" aria-hidden />
+                    Perfect day
+                  </Badge>
+                )}
+              </div>
               <SheetDescription className="flex items-center gap-2 mt-0.5">
                 {!isLoading && !habitsError && completedHabits > 0 && (
                   <span className="text-xs">
@@ -205,7 +263,7 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
               >
 
                 {/* ── Habits ── */}
-                {habits.length > 0 && (
+                {active.has('habits') && habits.length > 0 && (
                   <Section
                     icon={<CheckCircle2 className="h-4 w-4" />}
                     title="Habits"
@@ -250,8 +308,30 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
                   </Section>
                 )}
 
+                {/* ── Event-Based Habits ── */}
+                {active.has('event') && eventHabitsToday.length > 0 && (
+                  <Section
+                    icon={<Repeat className="h-4 w-4" />}
+                    title="Event-Based Habits"
+                    count={eventHabitsToday.length}
+                  >
+                    <div className="space-y-1.5">
+                      {eventHabitsToday.map(({ habit }) => (
+                        <div
+                          key={habit.id}
+                          className="flex items-center gap-2.5 py-1.5 px-2.5 rounded-lg bg-teal-500/[0.06]"
+                        >
+                          <span className="text-base leading-none shrink-0">{habit.icon ?? '🔁'}</span>
+                          <span className="flex-1 text-sm truncate">{habit.title}</span>
+                          <CheckCircle2 className="h-4 w-4 text-teal-500 shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+                )}
+
                 {/* ── Journal ── */}
-                {journal.length > 0 && (
+                {active.has('journal') && journal.length > 0 && (
                   <Section
                     icon={<BookOpen className="h-4 w-4" />}
                     title="Journal"
@@ -325,8 +405,45 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
                   </Section>
                 )}
 
+                {/* ── Expenses ── */}
+                {active.has('expenses') && expensesToday.length > 0 && (
+                  <Section
+                    icon={<Wallet className="h-4 w-4" />}
+                    title="Expenses"
+                  >
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground -mt-1">
+                        {formatCurrency(expensesTotal)} total
+                      </p>
+                      {expensesToday.map((exp) => (
+                        <div key={exp.id} className="rounded-xl border border-border bg-card p-3 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {exp.category.icon && (
+                                <span className="text-[13px] shrink-0" aria-hidden>{exp.category.icon}</span>
+                              )}
+                              <span className="text-xs font-semibold truncate">
+                                {exp.title || exp.category.name}
+                              </span>
+                            </div>
+                            <span className="text-xs font-bold tabular-nums shrink-0">{formatCurrency(exp.total)}</span>
+                          </div>
+                          <div className="space-y-0.5">
+                            {exp.items.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between gap-2">
+                                <span className="text-[11px] text-muted-foreground truncate">{item.name}</span>
+                                <span className="text-[11px] text-muted-foreground tabular-nums shrink-0">{formatCurrency(item.amount)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Section>
+                )}
+
                 {/* ── Planner ── */}
-                {tasks.length > 0 && (
+                {active.has('planner') && tasks.length > 0 && (
                   <Section
                     icon={<ClipboardList className="h-4 w-4" />}
                     title="Tasks"
@@ -391,38 +508,40 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
                 )}
 
                 {/* ── Recovery ── */}
-                {activeRecovery.length > 0 && (
+                {active.has('recovery') && recoveryToday.length > 0 && (
                   <Section
                     icon={<Shield className="h-4 w-4" />}
                     title="Recovery"
-                    count={activeRecovery.length}
+                    count={recoveryToday.length}
                   >
                     <div className="space-y-2">
-                      {activeRecovery.map((g) => {
-                        const streakOnDate = date
-                          ? Math.max(0, g.currentStreakDays - differenceInDays(new Date(), date))
-                          : g.currentStreakDays;
+                      {recoveryToday.map(({ goal: g, info }) => {
+                        const isRelapse   = info.status === 'relapse';
+                        const isMilestone = info.status === 'milestone';
                         return (
                           <div
                             key={g.id}
-                            className="flex items-center gap-3 rounded-xl border border-border bg-card p-3"
+                            className={cn(
+                              'flex items-center gap-3 rounded-xl border p-3',
+                              isRelapse ? 'border-rose-500/30 bg-rose-500/[0.04]' : 'border-border bg-card',
+                            )}
                           >
                             <div
                               className="h-9 w-9 rounded-xl flex items-center justify-center text-lg shrink-0"
                               style={{ backgroundColor: g.color ? `${g.color}20` : undefined }}
                             >
-                              {g.icon ?? '🛡️'}
+                              {isRelapse ? '💔' : g.icon ?? '🛡️'}
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium truncate">{g.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {streakOnDate > 0 ? `Day ${streakOnDate}` : '< 1 day'}
+                              <p className={cn('text-xs', isRelapse ? 'text-rose-600 dark:text-rose-400' : 'text-muted-foreground')}>
+                                {isRelapse ? 'Relapse' : `Day ${info.dayNumber}`}
                               </p>
                             </div>
-                            {streakOnDate >= 1 && (
-                              <div className="flex items-center gap-0.5 text-amber-500 shrink-0">
-                                <Flame className="h-3.5 w-3.5" />
-                                <span className="text-xs font-bold tabular-nums">{streakOnDate}</span>
+                            {!isRelapse && info.dayNumber != null && (
+                              <div className={cn('flex items-center gap-0.5 shrink-0', isMilestone ? 'text-amber-500' : 'text-emerald-500')}>
+                                {isMilestone ? <Star className="h-3.5 w-3.5" /> : <Flame className="h-3.5 w-3.5" />}
+                                <span className="text-xs font-bold tabular-nums">{info.dayNumber}</span>
                               </div>
                             )}
                           </div>
@@ -435,10 +554,12 @@ export function DayPanel({ date, onClose }: DayPanelProps) {
                 {/* Empty state */}
                 {!isLoading &&
                   habits.length === 0 &&
+                  eventHabitsToday.length === 0 &&
                   journal.length === 0 &&
                   tasks.length === 0 &&
+                  expensesToday.length === 0 &&
                   relevantGoals.length === 0 &&
-                  activeRecovery.length === 0 && (
+                  recoveryToday.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <span className="text-4xl mb-3">📅</span>
                       <p className="text-sm font-medium text-muted-foreground">Nothing logged yet</p>

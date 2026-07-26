@@ -26,7 +26,7 @@ export async function dailySnapshotJob(): Promise<void> {
       const [habitLogs, journalEntries, workoutSessions, notes, plannerTasks] =
         await Promise.all([
           prisma.habitLog.findMany({
-            where: { userId: user.id, logDate: yesterday },
+            where: { userId: user.id, logDate: yesterday, habit: { habitType: 'regular' } },
           }),
           prisma.journalEntry.findMany({
             where: { userId: user.id, entryDate: yesterday, deletedAt: null },

@@ -27,7 +27,7 @@ async function buildRealTimeDay(userId: string, date: Date): Promise<CalendarDay
 
   const [habitLogs, journalEntries, plannerTasks] = await Promise.all([
     prisma.habitLog.findMany({
-      where:  { userId, logDate: target },
+      where:  { userId, logDate: target, habit: { habitType: 'regular' } },
       select: { status: true },
     }),
     prisma.journalEntry.findMany({

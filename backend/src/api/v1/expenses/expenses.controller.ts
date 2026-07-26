@@ -237,13 +237,19 @@ export async function getExpenseSummary(req: Request, res: Response, next: NextF
 
 export async function listExpenses(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { cursor, limit, categoryId } = req.query as unknown as ListExpensesQuery;
+    const { cursor, limit, categoryId, from, to } = req.query as unknown as ListExpensesQuery;
 
     const expenses = await prisma.expense.findMany({
       where: {
         userId: req.user!.id,
         deletedAt: null,
         ...(categoryId !== undefined ? { categoryId } : {}),
+        ...(from !== undefined || to !== undefined ? {
+          expenseDate: {
+            ...(from !== undefined ? { gte: new Date(from) } : {}),
+            ...(to   !== undefined ? { lte: new Date(to)   } : {}),
+          },
+        } : {}),
       },
       include: expenseWithItems,
       orderBy: [{ expenseDate: 'desc' }, { createdAt: 'desc' }],

@@ -21,6 +21,8 @@ export const listExpensesQuerySchema = z.object({
   cursor:     z.string().optional(),
   limit:      z.coerce.number().int().min(1).max(100).default(20),
   categoryId: z.string().uuid().optional(),
+  from:       z.string().date().optional(),
+  to:         z.string().date().optional(),
 });
 
 export const createExpenseCategorySchema = z.object({

@@ -9,6 +9,8 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { CalendarDay } from '@shared/types/api.types';
+import type { CalendarDayExtras } from '@/hooks/api/useCalendar';
+import type { CalendarModule } from '../calendar.constants';
 
 // ── Week card ─────────────────────────────────────────────────────────────────
 
@@ -33,18 +35,23 @@ function moodEmoji(m: number | null, e: number | null): string {
 interface WeekDayCardProps {
   date:     Date;
   calDay:   CalendarDay | undefined;
+  extras:   CalendarDayExtras | undefined;
+  active:   Set<CalendarModule>;
   selected: boolean;
   onClick:  () => void;
 }
 
-function WeekDayCard({ date, calDay, selected, onClick }: WeekDayCardProps) {
+function WeekDayCard({ date, calDay, extras, active, selected, onClick }: WeekDayCardProps) {
   const today      = isToday(date);
   const pct        = calDay?.habitCompletionPct ?? 0;
   const scheduled  = calDay?.habitsScheduled    ?? 0;
   const { color }  = habitRingStyle(pct, scheduled);
-  const mood       = moodEmoji(calDay?.moodMorning ?? null, calDay?.moodEvening ?? null);
-  const hasJournal = calDay?.journalWritten ?? false;
-  const hasTasks   = (calDay?.tasksCompleted ?? 0) > 0;
+  const mood       = active.has('journal') ? moodEmoji(calDay?.moodMorning ?? null, calDay?.moodEvening ?? null) : '';
+  const hasJournal = active.has('journal')  && (calDay?.journalWritten ?? false);
+  const hasTasks   = active.has('planner')  && (calDay?.tasksCompleted ?? 0) > 0;
+  const hasEvent   = active.has('event')    && (extras?.eventHabitCount ?? 0) > 0;
+  const hasExpense = active.has('expenses') && (extras?.expensesTotal ?? 0) > 0;
+  const recovery   = active.has('recovery') ? extras?.recoveryStatus ?? null : null;
 
   return (
     <button
@@ -53,9 +60,10 @@ function WeekDayCard({ date, calDay, selected, onClick }: WeekDayCardProps) {
       className={cn(
         'flex flex-col items-center gap-1.5 rounded-2xl border p-3 transition-all duration-150',
         'hover:shadow-sm hover:border-border/80',
-        today    && 'border-primary/40 bg-primary/[0.03]',
-        selected && !today && 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20',
-        !today && !selected && 'border-border bg-card',
+        recovery === 'relapse' && 'border-rose-500/30 bg-rose-500/[0.04]',
+        today    && recovery !== 'relapse' && 'border-primary/40 bg-primary/[0.03]',
+        selected && !today && recovery !== 'relapse' && 'border-primary/30 bg-primary/[0.05] ring-1 ring-primary/20',
+        !today && !selected && recovery !== 'relapse' && 'border-border bg-card',
       )}
     >
       {/* Weekday */}
@@ -94,8 +102,12 @@ function WeekDayCard({ date, calDay, selected, onClick }: WeekDayCardProps) {
       </div>
 
       {/* Dots */}
-      <div className="flex items-center gap-0.5 h-2">
+      <div className="flex items-center gap-0.5 h-2 flex-wrap justify-center max-w-[36px]">
+        {recovery === 'relapse'   && <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />}
+        {recovery === 'milestone' && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />}
+        {hasEvent   && <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />}
         {hasJournal && <span className="h-1.5 w-1.5 rounded-full bg-blue-500" />}
+        {hasExpense && <span className="h-1.5 w-1.5 rounded-full bg-fuchsia-500" />}
         {hasTasks   && <span className="h-1.5 w-1.5 rounded-full bg-orange-400" />}
       </div>
     </button>
@@ -108,11 +120,13 @@ interface WeekStripProps {
   anchor:       Date;
   onAnchorChange: (d: Date) => void;
   days:         CalendarDay[];
+  extras:       Map<string, CalendarDayExtras>;
+  active:       Set<CalendarModule>;
   selectedDate: Date | null;
   onSelectDate: (d: Date) => void;
 }
 
-export function WeekStrip({ anchor, onAnchorChange, days, selectedDate, onSelectDate }: WeekStripProps) {
+export function WeekStrip({ anchor, onAnchorChange, days, extras, active, selectedDate, onSelectDate }: WeekStripProps) {
   const dayMap = useMemo(() => new Map(days.map((d) => [d.date, d])), [days]);
 
   const weekDays = useMemo(() => {
@@ -161,6 +175,8 @@ export function WeekStrip({ anchor, onAnchorChange, days, selectedDate, onSelect
               key={dateStr}
               date={date}
               calDay={dayMap.get(dateStr)}
+              extras={extras.get(dateStr)}
+              active={active}
               selected={selectedDate ? isSameDay(date, selectedDate) : false}
               onClick={() => onSelectDate(date)}
             />

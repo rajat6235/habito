@@ -47,8 +47,8 @@ const NAV_GROUPS: NavGroup[] = [
       // { label: 'Goals',        href: '/app/goals',        icon: Target },
       { label: 'Expenses',     href: '/app/expenses',     icon: Wallet },
       // { label: 'Notes',        href: '/app/notes',        icon: StickyNote, soon: true },
-      { label: 'Planner',      href: '/app/planner',      icon: Calendar },
       { label: 'Calendar',     href: '/app/calendar',     icon: CalendarDays },
+      { label: 'Planner',      href: '/app/planner',      icon: Calendar },
     ],
   },
   // {

@@ -3,117 +3,101 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
-  format, addMonths, subMonths, startOfWeek, isToday,
+  format, addMonths, subMonths, startOfWeek, endOfWeek, startOfMonth, endOfMonth, isToday,
   isSameMonth, addWeeks, subWeeks,
 } from 'date-fns';
 import {
   ChevronLeft, ChevronRight, CalendarDays, LayoutGrid,
-  Activity, CheckSquare, BookOpen, Flame, BarChart2,
+  BarChart2,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { useCalendarMonth, useCalendarHeatmap } from '@/hooks/api/useCalendar';
+import { cn, formatCurrency } from '@/lib/utils';
+import { useCalendarMonth, useCalendarHeatmap, useCalendarExtras } from '@/hooks/api/useCalendar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MonthGrid }   from './components/MonthGrid';
 import { WeekStrip }   from './components/WeekStrip';
 import { HeatmapView } from './components/HeatmapView';
 import { DayPanel }    from './components/DayPanel';
+import { CALENDAR_MODULES, ALL_CALENDAR_MODULES, type CalendarModule } from './calendar.constants';
+import { buildDayCell, type DayCellData, type DayEvent } from './dayEvents';
 import type { CalendarDay } from '@shared/types/api.types';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type CalView = 'month' | 'week' | 'heatmap';
 
-// ── Insights bar ──────────────────────────────────────────────────────────────
+// ── Month insights — short, literal sentences generated from the same events
+// that power the day cells, so "how was my month" never requires opening a date.
 
-interface InsightCardProps {
-  icon:  React.ReactNode;
-  label: string;
-  value: string;
-  sub?:  string;
-  color: string;
-}
+function MonthInsights({ cellData, days }: { cellData: Map<string, DayCellData>; days: CalendarDay[] }) {
+  const rows = useMemo(() => {
+    const out: { icon: string; text: React.ReactNode }[] = [];
+    const activeDays = days.filter((d) => d.habitsScheduled > 0);
+    if (activeDays.length > 0) {
+      const avgPct = Math.round(activeDays.reduce((s, d) => s + d.habitCompletionPct, 0) / activeDays.length);
+      out.push({ icon: '✅', text: <>You completed <b>{avgPct}%</b> of your habits this month.</> });
+    }
 
-function InsightCard({ icon, label, value, sub, color }: InsightCardProps) {
+    const allEvents = Array.from(cellData.values()).flatMap((c) => c.events);
+    const perfectDays = Array.from(cellData.values()).filter((c) => c.notable === 'perfect').length;
+    const relapses    = allEvents.filter((e) => e.notable === 'relapse').length;
+    const longestStreak = allEvents
+      .filter((e) => e.module === 'recovery' && e.metric != null)
+      .reduce((max, e) => Math.max(max, e.metric ?? 0), 0);
+    const totalSpent = allEvents.filter((e) => e.module === 'expenses').reduce((s, e) => s + (e.metric ?? 0), 0);
+
+    const eventHabitCounts = new Map<string, number>();
+    for (const e of allEvents) {
+      if (e.module !== 'event-habit') continue;
+      eventHabitCounts.set(e.headline, (eventHabitCounts.get(e.headline) ?? 0) + 1);
+    }
+    const topEventHabit = [...eventHabitCounts.entries()].sort((a, b) => b[1] - a[1])[0];
+
+    if (longestStreak > 0) out.push({ icon: '🔥', text: <>Longest recovery streak this month: <b>{longestStreak} days</b>.</> });
+    if (relapses > 0)      out.push({ icon: '💔', text: <><b>{relapses}</b> relapse{relapses > 1 ? 's' : ''} logged this month.</> });
+    if (totalSpent > 0)    out.push({ icon: '💰', text: <>You spent <b>{formatCurrency(totalSpent)}</b> this month.</> });
+    if (topEventHabit)     out.push({ icon: '🔁', text: <>You logged <b>{topEventHabit[0]}</b> {topEventHabit[1]} time{topEventHabit[1] > 1 ? 's' : ''}.</> });
+    if (perfectDays > 0)   out.push({ icon: '⭐', text: <>You had <b>{perfectDays}</b> perfect day{perfectDays > 1 ? 's' : ''}.</> });
+
+    return out;
+  }, [cellData, days]);
+
+  if (rows.length === 0) return null;
+
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 hover:border-border/80 hover:shadow-sm transition-all duration-150">
-      <div className={cn('h-9 w-9 rounded-xl flex items-center justify-center shrink-0', color)}>
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[11px] text-muted-foreground truncate">{label}</p>
-        <p className="text-base font-bold tabular-nums leading-tight">{value}</p>
-        {sub && <p className="text-[10px] text-muted-foreground/60 mt-px">{sub}</p>}
-      </div>
+    <div className="flex flex-col gap-1.5">
+      {rows.map((r, i) => (
+        <div key={i} className="flex items-center gap-2.5 rounded-xl border border-border bg-card px-3.5 py-2.5">
+          <span className="text-[15px] leading-none shrink-0" aria-hidden>{r.icon}</span>
+          <p className="text-[12.5px] text-muted-foreground leading-snug">{r.text}</p>
+        </div>
+      ))}
     </div>
   );
 }
 
-function InsightsBar({ days }: { days: CalendarDay[] }) {
-  const stats = useMemo(() => {
-    const activeDays     = days.filter((d) => d.habitsScheduled > 0);
-    const totalCompleted = days.reduce((s, d) => s + d.habitsCompleted, 0);
-    const totalScheduled = days.reduce((s, d) => s + d.habitsScheduled, 0);
-    const avgPct = activeDays.length > 0
-      ? Math.round(activeDays.reduce((s, d) => s + d.habitCompletionPct, 0) / activeDays.length)
-      : 0;
+// ── Module filter bar ─────────────────────────────────────────────────────────
 
-    // Perfect days (100% habits)
-    const perfectDays = activeDays.filter((d) => d.habitCompletionPct === 100).length;
-
-    const moodDays = days.filter((d) => d.moodMorning != null || d.moodEvening != null);
-    const avgMood  = moodDays.length > 0
-      ? (moodDays.reduce((s, d) => s + (d.moodMorning ?? d.moodEvening ?? 0), 0) / moodDays.length)
-      : 0;
-
-    const journalDays = days.filter((d) => d.journalWritten).length;
-    const tasksCompleted = days.reduce((s, d) => s + d.tasksCompleted, 0);
-
-    // Journal streak (consecutive days from today backwards)
-    const sorted = [...days].sort((a, b) => b.date.localeCompare(a.date));
-    let streak = 0;
-    for (const d of sorted) {
-      if (d.journalWritten) streak++;
-      else break;
-    }
-
-    return { totalCompleted, totalScheduled, avgPct, perfectDays, avgMood, journalDays, tasksCompleted, streak };
-  }, [days]);
-
-  const EMOJIS = ['😞','😕','😐','🙂','😊','😄','🥰','🤩','💪','🚀'];
-  const moodDisplay = stats.avgMood > 0
-    ? `${EMOJIS[Math.round(stats.avgMood) - 1]} ${stats.avgMood.toFixed(1)}`
-    : '—';
-
+function ModuleFilterBar({ active, onToggle }: { active: Set<CalendarModule>; onToggle: (m: CalendarModule) => void }) {
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-      <InsightCard
-        icon={<CheckSquare className="h-4 w-4" />}
-        label="Habits this month"
-        value={stats.totalScheduled > 0 ? `${stats.totalCompleted}/${stats.totalScheduled}` : '—'}
-        sub={stats.totalScheduled > 0 ? `${stats.avgPct}% avg · ${stats.perfectDays} perfect days` : undefined}
-        color="bg-violet-500/10 text-violet-600 dark:text-violet-400"
-      />
-      <InsightCard
-        icon={<BookOpen className="h-4 w-4" />}
-        label="Journal streak"
-        value={stats.streak > 0 ? `${stats.streak}d` : '—'}
-        sub={`${stats.journalDays} day${stats.journalDays !== 1 ? 's' : ''} written`}
-        color="bg-blue-500/10 text-blue-600 dark:text-blue-400"
-      />
-      <InsightCard
-        icon={<Flame className="h-4 w-4" />}
-        label="Avg mood"
-        value={moodDisplay}
-        sub={stats.avgMood > 0 ? `from ${stats.journalDays} ${stats.journalDays === 1 ? 'entry' : 'entries'}` : 'No mood data'}
-        color="bg-amber-500/10 text-amber-600 dark:text-amber-400"
-      />
-      <InsightCard
-        icon={<Activity className="h-4 w-4" />}
-        label="Tasks done"
-        value={stats.tasksCompleted > 0 ? String(stats.tasksCompleted) : '—'}
-        sub={stats.tasksCompleted > 0 ? 'this month' : undefined}
-        color="bg-orange-500/10 text-orange-600 dark:text-orange-400"
-      />
+    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-thin pb-0.5">
+      {CALENDAR_MODULES.map((m) => {
+        const on = active.has(m.key);
+        return (
+          <button
+            key={m.key}
+            type="button"
+            onClick={() => onToggle(m.key)}
+            aria-pressed={on}
+            className={cn(
+              'flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium whitespace-nowrap transition-all duration-150 shrink-0',
+              on ? 'bg-muted text-foreground' : 'bg-muted/30 text-muted-foreground/50 hover:text-muted-foreground',
+            )}
+          >
+            <span className={cn('h-2 w-2 rounded-full shrink-0', on ? m.dot : 'bg-muted-foreground/30')} />
+            {m.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -160,6 +144,7 @@ export function CalendarView() {
   const [weekAnchor,   setWeekAnchor]   = useState(() => startOfWeek(today, { weekStartsOn: 0 }));
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [panelOpen,    setPanelOpen]    = useState(false);
+  const [activeModules, setActiveModules] = useState<Set<CalendarModule>>(ALL_CALENDAR_MODULES);
 
   // Month data
   const { data: monthDays = [], isLoading: monthLoading } = useCalendarMonth(
@@ -176,6 +161,31 @@ export function CalendarView() {
     // Combine month data; for simplicity just pass monthDays
     return monthDays;
   }, [monthDays, view]);
+
+  // Recovery / event-habit / expense extras, composed client-side from their own
+  // existing endpoints — scoped to whichever range is currently visible.
+  const extrasFrom = format(view === 'week' ? startOfWeek(weekAnchor, { weekStartsOn: 0 }) : startOfMonth(currentMonth), 'yyyy-MM-dd');
+  const extrasTo   = format(view === 'week' ? endOfWeek(weekAnchor,   { weekStartsOn: 0 }) : endOfMonth(currentMonth),   'yyyy-MM-dd');
+  const { data: extras } = useCalendarExtras(extrasFrom, extrasTo);
+
+  // One ranked headline + life score per day, built once here and read by both
+  // the month grid and the insights list — the day cells never branch on module.
+  const monthCellData = useMemo(() => {
+    const map = new Map<string, DayCellData>();
+    for (const day of monthDays) {
+      const moduleEvents: DayEvent[] = extras.get(day.date)?.events ?? [];
+      map.set(day.date, buildDayCell(day, moduleEvents, activeModules));
+    }
+    return map;
+  }, [monthDays, extras, activeModules]);
+
+  function toggleModule(m: CalendarModule) {
+    setActiveModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  }
 
   function handleSelectDate(date: Date) {
     setSelectedDate(date);
@@ -249,16 +259,19 @@ export function CalendarView() {
           </div>
         </div>
 
-        {/* ── Insights bar ── */}
+        {/* ── Insights ── */}
         {monthLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-[60px] rounded-2xl" style={{ opacity: 1 - i * 0.15 }} />
+          <div className="flex flex-col gap-1.5">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-[38px] rounded-xl" style={{ opacity: 1 - i * 0.15 }} />
             ))}
           </div>
         ) : (
-          <InsightsBar days={monthDays} />
+          <MonthInsights cellData={monthCellData} days={monthDays} />
         )}
+
+        {/* ── Filters ── */}
+        <ModuleFilterBar active={activeModules} onToggle={toggleModule} />
 
         {/* ── View switcher ── */}
         <ViewSwitcher active={view} onChange={setView} />
@@ -271,7 +284,7 @@ export function CalendarView() {
             <div className="rounded-2xl border border-border bg-card p-4">
               <MonthGrid
                 month={currentMonth}
-                days={monthDays}
+                cellData={monthCellData}
                 selectedDate={selectedDate}
                 onSelectDate={handleSelectDate}
               />
@@ -288,6 +301,8 @@ export function CalendarView() {
                 anchor={weekAnchor}
                 onAnchorChange={setWeekAnchor}
                 days={weekDays}
+                extras={extras}
+                active={activeModules}
                 selectedDate={selectedDate}
                 onSelectDate={handleSelectDate}
               />
@@ -327,6 +342,7 @@ export function CalendarView() {
         <DayPanel
           date={selectedDate}
           onClose={() => { setPanelOpen(false); }}
+          active={activeModules}
         />
       )}
     </div>
