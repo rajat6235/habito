@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
 import { Prisma } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { prisma } from '../../../config/database';
 import { AppError } from '../../../errors/AppError';
 import { sendSuccess, sendCreated, sendPaginated } from '../../../utils/response';
@@ -150,11 +149,15 @@ export async function getExpenseSummary(req: Request, res: Response, next: NextF
     const today    = new Date(`${todayStr}T00:00:00.000Z`);
     const weekStart  = new Date(today);
     weekStart.setUTCDate(today.getUTCDate() - today.getUTCDay());
+    const lastWeekStart = new Date(weekStart);
+    lastWeekStart.setUTCDate(weekStart.getUTCDate() - 7);
     const monthStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), 1));
 
     const expenses = await prisma.expense.findMany({
       where:  { userId: req.user!.id, deletedAt: null },
       select: {
+        id:          true,
+        title:       true,
         expenseDate: true,
         categoryId:  true,
         category:    { select: { name: true, color: true, icon: true } },
@@ -162,10 +165,15 @@ export async function getExpenseSummary(req: Request, res: Response, next: NextF
       },
     });
 
-    let todayTotal = 0, weekTotal = 0, monthTotal = 0, yearTotal = 0;
+    let todayTotal = 0, weekTotal = 0, lastWeekTotal = 0, monthTotal = 0, yearTotal = 0;
     const byCategory = new Map<string, {
-      categoryId: string; name: string; color: string | null; icon: string | null; total: number;
+      categoryId: string; name: string; color: string | null; icon: string | null;
+      total: number; sessionCount: number;
     }>();
+    let largestSession: {
+      id: string; title: string | null; categoryName: string; categoryColor: string | null;
+      amount: number; date: string;
+    } | null = null;
 
     for (const expense of expenses) {
       const entryTotal = expense.items.reduce((sum, item) => sum + Number(item.amount), 0);
@@ -173,28 +181,52 @@ export async function getExpenseSummary(req: Request, res: Response, next: NextF
       if (expense.expenseDate.getUTCFullYear() === today.getUTCFullYear()) yearTotal += entryTotal;
       if (expense.expenseDate >= monthStart) monthTotal += entryTotal;
       if (expense.expenseDate >= weekStart)  weekTotal  += entryTotal;
+      if (expense.expenseDate >= lastWeekStart && expense.expenseDate < weekStart) lastWeekTotal += entryTotal;
       if (expense.expenseDate.getTime() === today.getTime()) todayTotal += entryTotal;
+
+      if (!largestSession || entryTotal > largestSession.amount) {
+        largestSession = {
+          id:            expense.id,
+          title:         expense.title,
+          categoryName:  expense.category.name,
+          categoryColor: expense.category.color,
+          amount:        entryTotal,
+          date:          expense.expenseDate.toISOString().slice(0, 10),
+        };
+      }
 
       const existing = byCategory.get(expense.categoryId);
       if (existing) {
         existing.total += entryTotal;
+        existing.sessionCount += 1;
       } else {
         byCategory.set(expense.categoryId, {
-          categoryId: expense.categoryId,
-          name:       expense.category.name,
-          color:      expense.category.color,
-          icon:       expense.category.icon,
-          total:      entryTotal,
+          categoryId:   expense.categoryId,
+          name:         expense.category.name,
+          color:        expense.category.color,
+          icon:         expense.category.icon,
+          total:        entryTotal,
+          sessionCount: 1,
         });
       }
     }
 
+    const weekChangePct = lastWeekTotal > 0
+      ? Math.round(((weekTotal - lastWeekTotal) / lastWeekTotal) * 100)
+      : null;
+
     sendSuccess(res, {
       today:      todayTotal,
       thisWeek:   weekTotal,
+      lastWeek:   lastWeekTotal,
+      weekChangePct,
       thisMonth:  monthTotal,
       thisYear:   yearTotal,
-      byCategory: Array.from(byCategory.values()).sort((a, b) => b.total - a.total),
+      totalSessions: expenses.length,
+      largestSession,
+      byCategory: Array.from(byCategory.values())
+        .map(c => ({ ...c, avgSession: Math.round(c.total / c.sessionCount) }))
+        .sort((a, b) => b.total - a.total),
     });
   } catch (err) {
     next(err);
@@ -205,10 +237,14 @@ export async function getExpenseSummary(req: Request, res: Response, next: NextF
 
 export async function listExpenses(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { cursor, limit } = req.query as unknown as ListExpensesQuery;
+    const { cursor, limit, categoryId } = req.query as unknown as ListExpensesQuery;
 
     const expenses = await prisma.expense.findMany({
-      where:   { userId: req.user!.id, deletedAt: null },
+      where: {
+        userId: req.user!.id,
+        deletedAt: null,
+        ...(categoryId !== undefined ? { categoryId } : {}),
+      },
       include: expenseWithItems,
       orderBy: [{ expenseDate: 'desc' }, { createdAt: 'desc' }],
       take:    limit + 1,

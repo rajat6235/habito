@@ -191,19 +191,34 @@ export interface Expense {
 }
 
 export interface ExpenseCategoryTotal {
-  categoryId: string;
-  name:       string;
-  color:      string | null;
-  icon:       string | null;
-  total:      number;
+  categoryId:   string;
+  name:         string;
+  color:        string | null;
+  icon:         string | null;
+  total:        number;
+  sessionCount: number;
+  avgSession:   number;
+}
+
+export interface LargestExpenseSession {
+  id:            string;
+  title:         string | null;
+  categoryName:  string;
+  categoryColor: string | null;
+  amount:        number;
+  date:          string;
 }
 
 export interface ExpenseSummary {
-  today:      number;
-  thisWeek:   number;
-  thisMonth:  number;
-  thisYear:   number;
-  byCategory: ExpenseCategoryTotal[];
+  today:          number;
+  thisWeek:       number;
+  lastWeek:       number;
+  weekChangePct:  number | null;
+  thisMonth:      number;
+  thisYear:       number;
+  totalSessions:  number;
+  largestSession: LargestExpenseSession | null;
+  byCategory:     ExpenseCategoryTotal[];
 }
 
 // ── Recovery ─────────────────────────────────────────────────────────────────
