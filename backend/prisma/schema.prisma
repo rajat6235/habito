@@ -355,7 +355,7 @@ model User {
   avatarUrl       String?    @map("avatar_url")
   bio             String?
   birthday        DateTime?  @db.Date
-  timezone        String     @default("UTC") @db.VarChar(100)
+  timezone        String     @default("Asia/Kolkata") @db.VarChar(100)
   theme           Theme      @default(system)
   status          UserStatus @default(active)
   onboardingDone  Boolean    @default(false) @map("onboarding_done")

@@ -99,7 +99,7 @@ function ProfileTab() {
       firstName: displayUser?.firstName ?? '',
       lastName:  displayUser?.lastName ?? '',
       bio:       displayUser?.bio ?? '',
-      timezone:  displayUser?.timezone ?? 'America/New_York',
+      timezone:  displayUser?.timezone ?? 'Asia/Kolkata',
     },
   });
 
@@ -109,7 +109,7 @@ function ProfileTab() {
         firstName: me.firstName ?? '',
         lastName:  me.lastName ?? '',
         bio:       me.bio ?? '',
-        timezone:  me.timezone ?? 'America/New_York',
+        timezone:  me.timezone ?? 'Asia/Kolkata',
       });
     }
   }, [me, reset]);
