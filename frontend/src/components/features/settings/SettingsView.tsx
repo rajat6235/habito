@@ -78,6 +78,10 @@ function AvatarPlaceholder({ firstName, lastName, avatarUrl }: AvatarPlaceholder
 const profileSchema = z.object({
   firstName: z.string().min(1, 'First name is required').max(80),
   lastName:  z.string().max(80).optional(),
+  username:  z.string()
+    .min(3, 'Username must be at least 3 characters')
+    .max(50, 'Username must be at most 50 characters')
+    .regex(/^[a-zA-Z0-9_-]+$/, 'Only letters, numbers, underscores, and hyphens'),
   bio:       z.string().max(500).optional(),
   timezone:  z.string().min(1, 'Timezone is required'),
 });
@@ -98,6 +102,7 @@ function ProfileTab() {
     defaultValues: {
       firstName: displayUser?.firstName ?? '',
       lastName:  displayUser?.lastName ?? '',
+      username:  displayUser?.username ?? '',
       bio:       displayUser?.bio ?? '',
       timezone:  displayUser?.timezone ?? 'Asia/Kolkata',
     },
@@ -108,6 +113,7 @@ function ProfileTab() {
       reset({
         firstName: me.firstName ?? '',
         lastName:  me.lastName ?? '',
+        username:  me.username ?? '',
         bio:       me.bio ?? '',
         timezone:  me.timezone ?? 'Asia/Kolkata',
       });
@@ -120,6 +126,7 @@ function ProfileTab() {
     await updateProfile.mutateAsync({
       firstName: values.firstName,
       lastName:  values.lastName || undefined,
+      username:  values.username,
       bio:       values.bio || undefined,
       timezone:  values.timezone,
     });
@@ -177,6 +184,27 @@ function ProfileTab() {
           placeholder="Last name"
           {...register('lastName')}
         />
+      </div>
+
+      {/* Username */}
+      <div className="space-y-1.5">
+        <Label htmlFor="s-username">
+          Username <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="s-username"
+          placeholder="username"
+          aria-invalid={!!errors.username}
+          aria-describedby="s-username-hint"
+          {...register('username')}
+        />
+        {errors.username ? (
+          <p className="text-xs text-destructive">{errors.username.message}</p>
+        ) : (
+          <p id="s-username-hint" className="text-xs text-muted-foreground">
+            Used to sign in — letters, numbers, underscores, and hyphens only.
+          </p>
+        )}
       </div>
 
       {/* Bio */}

@@ -4,6 +4,7 @@ import type { UserProfile, UserSession } from '@shared/types/api.types';
 export interface UpdateProfilePayload {
   firstName?: string;
   lastName?:  string;
+  username?:  string;
   bio?:       string;
   timezone?:  string;
   avatarUrl?: string;
