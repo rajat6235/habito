@@ -105,6 +105,11 @@ const config: Config = {
           '0%, 100%': { opacity: '1' },
           '50%':      { opacity: '0.5' },
         },
+        'nav-progress-sweep': {
+          '0%':   { transform: 'translateX(-100%) scaleX(0.4)' },
+          '50%':  { transform: 'translateX(10%) scaleX(0.6)' },
+          '100%': { transform: 'translateX(100%) scaleX(0.4)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -113,6 +118,7 @@ const config: Config = {
         'slide-in-right': 'slide-in-right 0.25s ease-out',
         'scale-in':       'scale-in 0.2s ease-out',
         shimmer:          'shimmer 2s linear infinite',
+        'nav-progress':   'nav-progress-sweep 0.9s ease-in-out infinite',
       },
       spacing: {
         sidebar: '240px',

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api/auth.api';
 import { useAuthStore } from '@/stores/auth.store';
+import { PageLoader } from '@/components/shared/PageLoader';
 
 // Bootstrap must always settle — a request that never resolves (e.g. a fetch left in limbo
 // by a mobile OS suspending the page mid-flight while backgrounded) must not leave the app
@@ -68,11 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Show spinner only on the client (after mount) to avoid hydration mismatch.
   // Server always renders children; spinner appears after first paint.
   if (mounted && isLoading) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-background">
-        <div className="h-8 w-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-      </div>
-    );
+    return <PageLoader />;
   }
 
   return <>{children}</>;

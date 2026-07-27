@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { PageLoader } from '@/components/shared/PageLoader';
 import { cn } from '@/lib/utils';
 
 const loginSchema = z.object({
@@ -36,6 +37,14 @@ export function LoginPage() {
   const { login, loginLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formError, setFormError]       = useState<string | null>(null);
+  // Separate from loginLoading: the login mutation itself settles as soon as the
+  // API call returns, but that's well before the user is actually looking at
+  // their dashboard — router.push() still has to resolve the new route. Without
+  // this, the button's spinner stops and the login page just sits there for a
+  // beat with no feedback, looking like the click did nothing. This stays true
+  // — and the full-screen loader stays up — right through that gap, since this
+  // component only unmounts once Next.js has actually swapped to the new route.
+  const [postLoginPending, setPostLoginPending] = useState(false);
   const router      = useRouter();
   const params      = useSearchParams();
   const returnPath  = params.get('return') ?? '/app';
@@ -52,10 +61,18 @@ export function LoginPage() {
 
   function onSubmit(values: LoginForm) {
     setFormError(null);
+    setPostLoginPending(true);
     login(values, {
       onSuccess: () => router.push(returnPath),
-      onError:   (err) => setFormError(err instanceof Error ? err.message : String(err)),
+      onError:   (err) => {
+        setPostLoginPending(false);
+        setFormError(err instanceof Error ? err.message : String(err));
+      },
     });
+  }
+
+  if (postLoginPending) {
+    return <PageLoader message="Signing you in…" />;
   }
 
   return (

@@ -9,6 +9,7 @@ import { Toaster }                from '@/components/ui/toaster';
 import { CommandPalette }         from '@/components/shared/CommandPalette';
 import { OfflineBanner }          from '@/components/shared/OfflineBanner';
 import { ImpersonationBanner }    from '@/components/shared/ImpersonationBanner';
+import { NavigationProgress }     from '@/components/shared/NavigationProgress';
 import { TooltipProvider }        from '@/components/ui/tooltip';
 
 declare global {
@@ -29,6 +30,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <QueryProvider>
       <ThemeProvider>
         <TooltipProvider delayDuration={400}>
+          <NavigationProgress />
           <AuthProvider>
             <PWAProvider>
               <ImpersonationBanner />
