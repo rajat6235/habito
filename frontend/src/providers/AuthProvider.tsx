@@ -6,11 +6,11 @@ import { authApi } from '@/lib/api/auth.api';
 import { useAuthStore } from '@/stores/auth.store';
 import { PageLoader } from '@/components/shared/PageLoader';
 
-// Bootstrap must always settle — a request that never resolves (e.g. a fetch left in limbo
-// by a mobile OS suspending the page mid-flight while backgrounded) must not leave the app
-// stuck on the loading spinner forever. This bounds the whole bootstrap to a fixed budget,
-// independent of whatever the network/browser does.
-const AUTH_BOOTSTRAP_TIMEOUT_MS = 10_000;
+// Allow up to 30 s for the backend to cold-start (Render free tier can take ~20 s).
+// A 10 s budget was too tight and would log users out during normal cold-start wakeups.
+const AUTH_BOOTSTRAP_TIMEOUT_MS = 30_000;
+// Show a "server is waking up" hint after this many ms of waiting.
+const SLOW_LOADING_HINT_MS      =  5_000;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -28,6 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const { setUser, clearAuth, setLoading, isLoading } = useAuthStore();
   const initialized = useRef(false);
   const [mounted, setMounted] = useState(false);
+  const [slowLoading, setSlowLoading] = useState(false);
   const pathname = usePathname();
   const router    = useRouter();
 
@@ -66,10 +67,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setLoading(false));
   }, [setUser, clearAuth, setLoading, pathname, router]);
 
+  // After SLOW_LOADING_HINT_MS of waiting, reveal a friendly "waking up" message
+  // so users don't think the app is frozen during a Render cold-start.
+  useEffect(() => {
+    if (!isLoading) { setSlowLoading(false); return; }
+    const t = setTimeout(() => setSlowLoading(true), SLOW_LOADING_HINT_MS);
+    return () => clearTimeout(t);
+  }, [isLoading]);
+
   // Show spinner only on the client (after mount) to avoid hydration mismatch.
   // Server always renders children; spinner appears after first paint.
   if (mounted && isLoading) {
-    return <PageLoader />;
+    return (
+      <PageLoader
+        message={slowLoading ? 'Server is waking up, please wait…' : undefined}
+      />
+    );
   }
 
   return <>{children}</>;

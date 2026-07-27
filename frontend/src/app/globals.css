@@ -178,6 +178,20 @@
                 linear-gradient(135deg, hsl(var(--primary)/0.8) 0%, hsl(var(--primary)/0.3) 50%, hsl(var(--primary)/0.8) 100%) border-box;
   }
 
+  /* Hero section CSS animations — avoids framer-motion SSR opacity:0 blank */
+  @keyframes hero-fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to   { opacity: 1; transform: translateY(0);    }
+  }
+  .hero-anim {
+    animation: hero-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  }
+  .hero-delay-0 { animation-delay:   0ms; }
+  .hero-delay-1 { animation-delay:  80ms; }
+  .hero-delay-2 { animation-delay: 170ms; }
+  .hero-delay-3 { animation-delay: 260ms; }
+  .hero-delay-4 { animation-delay: 350ms; }
+
   @keyframes orb-float {
     0%   { transform: translate(0px, 0px) scale(1); }
     100% { transform: translate(30px, -20px) scale(1.05); }

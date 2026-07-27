@@ -78,7 +78,10 @@ export function Footer() {
                         {link.label}
                       </Link>
                     ) : (
-                      <span className="text-sm text-muted-foreground/40 cursor-default select-none">
+                      <span
+                        title="Coming soon"
+                        className="text-sm text-muted-foreground/40 cursor-default select-none"
+                      >
                         {link.label}
                       </span>
                     )}
