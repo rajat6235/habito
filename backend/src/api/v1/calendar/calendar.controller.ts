@@ -25,7 +25,13 @@ async function buildRealTimeDay(userId: string, date: Date): Promise<CalendarDay
   const dateStr = format(date, 'yyyy-MM-dd');
   const target  = parseISO(dateStr);
 
-  const [habitLogs, journalEntries, plannerTasks] = await Promise.all([
+  const [habitsScheduled, habitLogs, journalEntries, plannerTasks] = await Promise.all([
+    // Count ALL active regular habits — not just the ones that have been logged.
+    // Using habitLogs.length as the denominator only counts habits the user
+    // already interacted with, giving 4/4 = 100% when 2 habits are still pending.
+    prisma.habit.count({
+      where: { userId, habitType: 'regular', archivedAt: null, deletedAt: null },
+    }),
     prisma.habitLog.findMany({
       where:  { userId, logDate: target, habit: { habitType: 'regular' } },
       select: { status: true },
@@ -40,7 +46,6 @@ async function buildRealTimeDay(userId: string, date: Date): Promise<CalendarDay
     }),
   ]);
 
-  const habitsScheduled    = habitLogs.length;
   const habitsCompleted    = habitLogs.filter((l) => l.status === 'completed').length;
   const habitCompletionPct = habitsScheduled > 0
     ? Math.round((habitsCompleted / habitsScheduled) * 100)
