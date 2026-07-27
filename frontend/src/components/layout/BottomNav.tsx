@@ -10,8 +10,8 @@ import { useUiStore } from '@/stores/ui.store';
 const ITEMS = [
   { label: 'Home',    href: '/app',         icon: LayoutDashboard },
   { label: 'Habits',  href: '/app/habits',  icon: CheckSquare },
+  { label: 'Recovery',     href: '/app/recovery',     icon: Dumbbell },
   { label: 'Journal', href: '/app/journal', icon: BookOpen },
-  { label: 'Gym',     href: '/app/gym',     icon: Dumbbell },
 ];
 
 export function BottomNav() {
