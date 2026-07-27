@@ -16,9 +16,9 @@ import { PageLoader } from '@/components/shared/PageLoader';
 import { cn } from '@/lib/utils';
 
 const loginSchema = z.object({
-  email:      z.string().min(1, 'Email is required').email('Enter a valid email'),
-  password:   z.string().min(1, 'Password is required'),
-  rememberMe: z.boolean().default(false),
+  emailOrUsername: z.string().min(1, 'Email or username is required'),
+  password:        z.string().min(1, 'Password is required'),
+  rememberMe:      z.boolean().default(false),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -116,17 +116,17 @@ export function LoginPage() {
         className="space-y-4"
       >
         <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="emailOrUsername">Email or Username</Label>
           <Input
-            id="email"
-            type="email"
-            autoComplete="email"
-            placeholder="you@example.com"
-            aria-invalid={!!errors.email}
-            {...register('email')}
+            id="emailOrUsername"
+            type="text"
+            autoComplete="username"
+            placeholder="Enter your email or username"
+            aria-invalid={!!errors.emailOrUsername}
+            {...register('emailOrUsername')}
           />
-          {errors.email && (
-            <p className="text-destructive text-xs">{errors.email.message}</p>
+          {errors.emailOrUsername && (
+            <p className="text-destructive text-xs">{errors.emailOrUsername.message}</p>
           )}
         </div>
 

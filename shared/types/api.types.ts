@@ -49,12 +49,16 @@ export interface AuthUser {
 export interface LoginResponse {
   accessToken: string;
   expiresIn:   number;
+  // ISO datetime — the single source of truth the frontend derives the
+  // habito_session/habito_role flag cookies' Max-Age from.
+  refreshTokenExpiresAt: string;
   user:        AuthUser;
 }
 
 export interface TokenRefreshResponse {
   accessToken: string;
   expiresIn:   number;
+  refreshTokenExpiresAt: string;
 }
 
 // ── User Profile ─────────────────────────────────────────────────────────────

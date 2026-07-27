@@ -1,6 +1,7 @@
-import { apiClient, apiGet, apiPost, setAccessToken } from './client';
+import { apiClient, apiGet, apiPost, setAccessToken, syncSessionCookies, currentRoleCookie } from './client';
 import type {
   LoginResponse,
+  TokenRefreshResponse,
   UserProfile,
   UserSession,
 } from '@shared/types/api.types';
@@ -14,9 +15,9 @@ export interface RegisterPayload {
 }
 
 export interface LoginPayload {
-  email:      string;
-  password:   string;
-  rememberMe: boolean;
+  emailOrUsername: string;
+  password:        string;
+  rememberMe:      boolean;
 }
 
 export const authApi = {
@@ -27,16 +28,14 @@ export const authApi = {
   async login(payload: LoginPayload): Promise<LoginResponse> {
     const result = await apiPost<LoginResponse>('/auth/login', payload);
     setAccessToken(result.accessToken);
-    // Set lightweight session indicator cookie for middleware
-    const maxAge = payload.rememberMe ? 30 * 24 * 3600 : 7 * 24 * 3600;
-    document.cookie = `habito_session=1; Max-Age=${maxAge}; path=/; SameSite=Strict`;
-    document.cookie = `habito_role=${result.user.roles[0] ?? ''}; Max-Age=${maxAge}; path=/; SameSite=Strict`;
+    syncSessionCookies(result.refreshTokenExpiresAt, result.user.roles[0] ?? '');
     return result;
   },
 
-  async refresh(): Promise<{ accessToken: string }> {
-    const result = await apiPost<{ accessToken: string }>('/auth/refresh');
+  async refresh(): Promise<TokenRefreshResponse> {
+    const result = await apiPost<TokenRefreshResponse>('/auth/refresh');
     setAccessToken(result.accessToken);
+    syncSessionCookies(result.refreshTokenExpiresAt, currentRoleCookie());
     return result;
   },
 

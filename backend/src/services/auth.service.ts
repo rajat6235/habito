@@ -5,7 +5,7 @@ import { env } from '../config/env';
 import { AppError } from '../errors/AppError';
 import { ErrorCode } from '../errors/errorCodes';
 import { hashPassword, verifyPassword, hashToken, generateSecureToken } from '../utils/crypto';
-import { normaliseEmail } from '../utils/sanitize';
+import { normaliseEmail, normaliseUsername } from '../utils/sanitize';
 import { UserRepository } from '../repositories/user.repository';
 import { SessionRepository } from '../repositories/session.repository';
 import { prisma } from '../config/database';
@@ -15,6 +15,10 @@ export interface TokenPair {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
+  // Absolute expiry of the refresh token — the single source of truth both the
+  // httpOnly cookie's Max-Age and the frontend's session-indicator cookies are
+  // derived from, so "remember me" duration can never drift between them.
+  refreshTokenExpiresAt: Date;
 }
 
 export interface LoginResult extends TokenPair {
@@ -76,15 +80,19 @@ export class AuthService {
   }
 
   async login(data: {
-    email: string;
+    emailOrUsername: string;
     password: string;
     rememberMe: boolean;
     userAgent?: string;
     ipAddress?: string;
   }): Promise<LoginResult> {
-    const email = normaliseEmail(data.email);
-    const emailUser = await this.userRepo.findByEmail(email);
-    const user = emailUser ? await this.userRepo.findByIdWithRoles(emailUser.id) : null;
+    // Usernames are restricted to [a-zA-Z0-9_-] at registration (see registerSchema) — an
+    // '@' can only ever appear in an email, so this detection is unambiguous, not a guess.
+    const identifier = data.emailOrUsername.trim();
+    const lookupUser = identifier.includes('@')
+      ? await this.userRepo.findByEmail(normaliseEmail(identifier))
+      : await this.userRepo.findByUsername(normaliseUsername(identifier));
+    const user = lookupUser ? await this.userRepo.findByIdWithRoles(lookupUser.id) : null;
 
     if (!user) {
       // Constant-time to prevent email enumeration via timing
@@ -187,6 +195,9 @@ export class AuthService {
       accessToken,
       refreshToken: newRawToken,
       expiresIn: ms(env.JWT_ACCESS_EXPIRES_IN) / 1000,
+      // Rotation preserves the original absolute expiry (see rotateRefreshToken call
+      // above) — a fixed 7/30-day window from the original login, not sliding.
+      refreshTokenExpiresAt: stored.expiresAt,
     };
   }
 
@@ -282,13 +293,14 @@ export class AuthService {
     const rawRefreshToken = generateSecureToken();
     const refreshTokenHash = hashToken(rawRefreshToken);
     const family = uuidv4();
+    const refreshTokenExpiresAt = new Date(Date.now() + ms(params.refreshExpiresIn));
 
     await this.sessionRepo.createRefreshToken({
       sessionId: params.sessionId,
       userId: params.userId,
       tokenHash: refreshTokenHash,
       family,
-      expiresAt: new Date(Date.now() + ms(params.refreshExpiresIn)),
+      expiresAt: refreshTokenExpiresAt,
     });
 
     const accessToken = this.signAccessToken({
@@ -303,6 +315,7 @@ export class AuthService {
       accessToken,
       refreshToken: rawRefreshToken,
       expiresIn: ms(env.JWT_ACCESS_EXPIRES_IN) / 1000,
+      refreshTokenExpiresAt,
     };
   }
 

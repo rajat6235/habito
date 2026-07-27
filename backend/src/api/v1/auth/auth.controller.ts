@@ -3,16 +3,19 @@ import { container } from '../../../container';
 import { sendSuccess, sendCreated } from '../../../utils/response';
 import { RegisterInput, LoginInput, ForgotPasswordInput, ResetPasswordInput } from './auth.validation';
 import { env } from '../../../config/env';
-import ms from 'ms';
 
 const REFRESH_COOKIE = 'habito_refresh';
 
-function setRefreshCookie(res: Response, token: string, rememberMe: boolean): void {
+// Cookie lifetime is always derived from the token's real, already-computed absolute
+// expiry — never re-decided from a boolean here. That's what previously caused "remember
+// me" to silently downgrade: the refresh endpoint used to hardcode `rememberMe: false`,
+// resetting the cookie to the short-lived duration on every single token refresh.
+function setRefreshCookie(res: Response, token: string, expiresAt: Date): void {
   res.cookie(REFRESH_COOKIE, token, {
     httpOnly: true,
     secure: env.COOKIE_SECURE,
     sameSite: env.COOKIE_SAME_SITE,
-    maxAge: ms(rememberMe ? env.JWT_REFRESH_REMEMBER_ME_EXPIRES_IN : env.JWT_REFRESH_EXPIRES_IN),
+    maxAge: Math.max(0, expiresAt.getTime() - Date.now()),
     path: '/api/v1/auth',
   });
 }
@@ -45,18 +48,19 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
   try {
     const body = req.body as LoginInput;
     const result = await container.authService.login({
-      email:      body.email,
-      password:   body.password,
-      rememberMe: body.rememberMe,
+      emailOrUsername: body.emailOrUsername,
+      password:        body.password,
+      rememberMe:      body.rememberMe,
       ...(req.get('user-agent') ? { userAgent: req.get('user-agent')! } : {}),
       ...(req.ip                ? { ipAddress: req.ip                } : {}),
     });
 
-    setRefreshCookie(res, result.refreshToken, body.rememberMe);
+    setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt);
 
     sendSuccess(res, {
       accessToken: result.accessToken,
       expiresIn: result.expiresIn,
+      refreshTokenExpiresAt: result.refreshTokenExpiresAt.toISOString(),
       user: result.user,
     });
   } catch (err) {
@@ -75,11 +79,12 @@ export async function refreshToken(req: Request, res: Response, next: NextFuncti
 
     const result = await container.authService.refreshTokens(token);
 
-    setRefreshCookie(res, result.refreshToken, false);
+    setRefreshCookie(res, result.refreshToken, result.refreshTokenExpiresAt);
 
     sendSuccess(res, {
       accessToken: result.accessToken,
       expiresIn: result.expiresIn,
+      refreshTokenExpiresAt: result.refreshTokenExpiresAt.toISOString(),
     });
   } catch (err) {
     clearRefreshCookie(res);

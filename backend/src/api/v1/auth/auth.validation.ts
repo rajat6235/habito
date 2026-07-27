@@ -21,7 +21,9 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email(),
+  // Accepts either an email or a username — usernames can't contain '@' (see
+  // registerSchema), so the service layer can tell them apart unambiguously.
+  emailOrUsername: z.string().min(1, 'Email or username is required').max(255),
   password: z.string().min(1),
   rememberMe: z.boolean().default(false),
 });

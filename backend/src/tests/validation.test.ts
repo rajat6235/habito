@@ -86,10 +86,14 @@ describe('registerSchema', () => {
 });
 
 describe('loginSchema', () => {
-  const valid = { email: 'user@example.com', password: 'secret', rememberMe: false };
+  const valid = { emailOrUsername: 'user@example.com', password: 'secret', rememberMe: false };
 
-  it('accepts a valid login', () => {
+  it('accepts a valid login by email', () => {
     expect(loginSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it('accepts a valid login by username', () => {
+    expect(loginSchema.safeParse({ ...valid, emailOrUsername: 'someuser' }).success).toBe(true);
   });
 
   it('defaults rememberMe to false', () => {
@@ -101,6 +105,10 @@ describe('loginSchema', () => {
   it('rejects a missing password', () => {
     const { password: _p, ...rest } = valid;
     expect(loginSchema.safeParse(rest).success).toBe(false);
+  });
+
+  it('rejects an empty identifier', () => {
+    expect(loginSchema.safeParse({ ...valid, emailOrUsername: '' }).success).toBe(false);
   });
 });
 

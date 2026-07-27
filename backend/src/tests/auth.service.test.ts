@@ -150,9 +150,9 @@ describe('AuthService.login()', () => {
   });
 
   const loginPayload = {
-    email:      'alice@example.com',
-    password:   'correct-password',
-    rememberMe: false,
+    emailOrUsername: 'alice@example.com',
+    password:        'correct-password',
+    rememberMe:      false,
   };
 
   it('throws INVALID_CREDENTIALS when user not found', async () => {
@@ -237,6 +237,38 @@ describe('AuthService.login()', () => {
     expect(typeof result.accessToken).toBe('string');
     expect(result.user.email).toBe('alice@example.com');
     expect(result.sessionId).toBe('session-id-1');
+  });
+
+  it('returns refreshTokenExpiresAt matching the requested session duration', async () => {
+    const user = makeUser({ passwordHash: realHash });
+    const userRepo = makeUserRepo({
+      findByEmail:       vi.fn().mockResolvedValue(user),
+      findByIdWithRoles: vi.fn().mockResolvedValue(user),
+    });
+    const svc = new AuthService(userRepo as never, makeSessionRepo() as never);
+
+    const result = await svc.login(loginPayload);
+
+    expect(result.refreshTokenExpiresAt).toBeInstanceOf(Date);
+    expect(result.refreshTokenExpiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('authenticates via username — routes to findByUsername, never findByEmail, when input has no @', async () => {
+    const user = makeUser({ passwordHash: realHash });
+    const findByEmail    = vi.fn().mockResolvedValue(null);
+    const findByUsername = vi.fn().mockResolvedValue(user);
+    const userRepo = makeUserRepo({
+      findByEmail,
+      findByUsername,
+      findByIdWithRoles: vi.fn().mockResolvedValue(user),
+    });
+    const svc = new AuthService(userRepo as never, makeSessionRepo() as never);
+
+    const result = await svc.login({ ...loginPayload, emailOrUsername: 'alice' });
+
+    expect(findByUsername).toHaveBeenCalledWith('alice');
+    expect(findByEmail).not.toHaveBeenCalled();
+    expect(result.user.username).toBe('alice');
   });
 });
 

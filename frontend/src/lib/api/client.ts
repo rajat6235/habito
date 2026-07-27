@@ -32,6 +32,24 @@ export function setAccessToken(token: string | null) {
   accessToken = token;
 }
 
+// The one place that writes the JS-readable session-indicator cookies the edge
+// middleware gates /app/* on. Both login and every subsequent refresh call this
+// with the SAME authoritative refreshTokenExpiresAt the backend returns, so the
+// flag cookies can never drift from the real (httpOnly, JS-invisible) session —
+// which is exactly what silently broke "remember me" before: the flag cookie was
+// set once at login and never extended, independent of the real token's lifetime.
+export function syncSessionCookies(refreshTokenExpiresAt: string, role: string): void {
+  if (typeof document === 'undefined') return;
+  const maxAge = Math.max(0, Math.floor((new Date(refreshTokenExpiresAt).getTime() - Date.now()) / 1000));
+  document.cookie = `habito_session=1; Max-Age=${maxAge}; path=/; SameSite=Strict`;
+  document.cookie = `habito_role=${role}; Max-Age=${maxAge}; path=/; SameSite=Strict`;
+}
+
+export function currentRoleCookie(): string {
+  if (typeof document === 'undefined') return '';
+  return document.cookie.match(/(?:^|;\s*)habito_role=([^;]*)/)?.[1] ?? '';
+}
+
 export function getAccessToken(): string | null {
   return accessToken;
 }
@@ -96,13 +114,14 @@ apiClient.interceptors.response.use(
     isRefreshing    = true;
 
     try {
-      const { data } = await apiClient.post<{ data: { accessToken: string } }>(
+      const { data } = await apiClient.post<{ data: { accessToken: string; refreshTokenExpiresAt: string } }>(
         '/auth/refresh',
         {},
         { _retry: true } as AxiosRequestConfig,
       );
       const newToken = data.data.accessToken;
       setAccessToken(newToken);
+      syncSessionCookies(data.data.refreshTokenExpiresAt, currentRoleCookie());
       drainQueue(null, newToken);
       original.headers['Authorization'] = `Bearer ${newToken}`;
       return apiClient(original);
