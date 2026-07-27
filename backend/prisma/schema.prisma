@@ -77,6 +77,9 @@ enum HabitLogStatus {
   completed
   skipped
   failed
+  // Logged, but hasn't reached the habit's minimum-required completions yet
+  // (multi-completion habits only — see Habit.frequencyConfig.minRequired).
+  partial
 
   @@map("habit_log_status")
 }

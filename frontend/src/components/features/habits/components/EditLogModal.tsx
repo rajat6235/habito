@@ -22,12 +22,13 @@ import type { CustomFieldDef } from '@shared/types/customFields';
 interface EditLogModalProps {
   log:          HabitLog | null;
   habitId:      string;
-  customFields?: CustomFieldDef[];
+  customFields?: CustomFieldDef[] | null;
   onClose:      () => void;
 }
 
-export function EditLogModal({ log, habitId, customFields = [], onClose }: EditLogModalProps) {
+export function EditLogModal({ log, habitId, customFields, onClose }: EditLogModalProps) {
   const updateLog = useUpdateLog(habitId);
+  const fields = customFields ?? [];
 
   const methods = useForm<EditLogForm>({
     resolver: zodResolver(editLogSchema),
@@ -87,6 +88,9 @@ export function EditLogModal({ log, habitId, customFields = [], onClose }: EditL
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="completed">Completed</SelectItem>
+                  {log?.status === 'partial' && (
+                    <SelectItem value="partial">Partial (below required)</SelectItem>
+                  )}
                   <SelectItem value="skipped">Skipped</SelectItem>
                   <SelectItem value="failed">Failed</SelectItem>
                 </SelectContent>
@@ -104,7 +108,7 @@ export function EditLogModal({ log, habitId, customFields = [], onClose }: EditL
               {errors.value && <p className="text-xs text-destructive">{errors.value.message}</p>}
             </div>
 
-            {customFields.length > 0 && <DynamicLogFields fields={customFields} />}
+            {fields.length > 0 && <DynamicLogFields fields={fields} />}
 
             <div className="grid grid-cols-2 gap-2">
               <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

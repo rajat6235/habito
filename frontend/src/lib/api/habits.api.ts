@@ -36,7 +36,7 @@ export interface LogHabitPayload {
 }
 
 export interface UpdateLogPayload {
-  status?:            'completed' | 'skipped' | 'failed';
+  status?:            'completed' | 'skipped' | 'failed' | 'partial';
   value?:             number | null;
   note?:              string | null;
   skipReason?:        string | null;
@@ -53,6 +53,9 @@ export interface RegularHabitStatsResponse {
   longestStreak:    number;
   totalCompletions: number;
   successRate:      number;
+  timesPerDay:      number;
+  minRequired:      number;
+  actualCompletionsThisMonth: number;
   last30Days:       number;
   last7Days:        number;
   heatmap:          HabitHeatmapDay[];
@@ -105,7 +108,7 @@ export const habitsApi = {
     return apiDelete(`/habits/${id}`);
   },
 
-  archive(id: string): Promise<Habit> {
+  archive(id: string): Promise<{ archived: boolean }> {
     return apiPost(`/habits/${id}/archive`, {});
   },
 

@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useCreateHabit, useHabitCategories, useLogHabit } from '@/hooks/api/useHabits';
+import { useUpdateHabit, useHabitCategories } from '@/hooks/api/useHabits';
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
 } from '@/components/ui/sheet';
@@ -15,112 +15,123 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Sparkles } from 'lucide-react';
 import { useUiStore } from '@/stores/ui.store';
 import { createHabitSchema, type CreateHabitForm } from '../habits.schemas';
-import { PRESET_ICONS, PRESET_COLORS, HABIT_TYPES } from '../habits.constants';
+import { PRESET_ICONS, PRESET_COLORS } from '../habits.constants';
+import { getTimesPerDay, getMinRequired } from '../utils/habitUtils';
 import { CustomFieldsBuilder } from './CustomFieldsBuilder';
-import { TemplateGallery } from './TemplateGallery';
 import type { CustomFieldDef } from '@shared/types/customFields';
-import type { HabitTemplate } from '../habits.templates';
+import type { Habit } from '@shared/types/api.types';
 
-interface CreateHabitSheetProps {
-  open:    boolean;
+interface EditHabitSheetProps {
+  habit:   Habit | null;
   onClose: () => void;
 }
 
-export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
-  const createHabit = useCreateHabit();
-  const logHabit     = useLogHabit();
+function formDefaultsFor(habit: Habit | null): CreateHabitForm {
+  const timesPerDay = habit ? getTimesPerDay(habit) : 1;
+  const minRequired  = habit ? getMinRequired(habit) : 1;
+  return {
+    title:          habit?.title ?? '',
+    description:    habit?.description ?? undefined,
+    categoryId:     habit?.categoryId ?? undefined,
+    icon:           habit?.icon ?? undefined,
+    color:          habit?.color ?? undefined,
+    habitType:      habit?.habitType ?? 'regular',
+    timesPerDay,
+    completionType: minRequired < timesPerDay ? 'minimum' : 'all',
+    minRequired:    minRequired < timesPerDay ? minRequired : undefined,
+  };
+}
+
+export function EditHabitSheet({ habit, onClose }: EditHabitSheetProps) {
+  const updateHabit = useUpdateHabit(habit?.id ?? '');
   const { data: categories = [] } = useHabitCategories();
-  const [customFields,     setCustomFields]     = useState<CustomFieldDef[]>([]);
-  const [galleryOpen,      setGalleryOpen]      = useState(false);
+  const [customFields, setCustomFields] = useState<CustomFieldDef[]>(habit?.customFields ?? []);
   const addToast = useUiStore((s) => s.addToast);
 
   const {
-    register, handleSubmit, reset, setValue, watch,
+    register, handleSubmit, setValue, watch, reset,
     formState: { errors },
-  } = useForm<CreateHabitForm>({ resolver: zodResolver(createHabitSchema) });
+  } = useForm<CreateHabitForm>({
+    resolver:      zodResolver(createHabitSchema),
+    defaultValues: formDefaultsFor(habit),
+  });
 
-  function applyTemplate(template: HabitTemplate, fields: CustomFieldDef[]) {
-    setCustomFields(fields);
-    setValue('icon',  template.icon);
-    if (!watch('title')) setValue('title', template.name);
-  }
+  // EditHabitSheet stays mounted across opens (same pattern as DeleteHabitConfirm/
+  // HabitHistorySheet) — defaultValues only apply on the very first render, so the
+  // form has to be explicitly re-seeded whenever a different habit is opened for edit.
+  useEffect(() => {
+    if (habit) {
+      reset(formDefaultsFor(habit));
+      setCustomFields(habit.customFields ?? []);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [habit?.id]);
 
   async function onSubmit(values: CreateHabitForm) {
-    const isEvent = values.habitType === 'event';
-    const timesPerDay = values.timesPerDay ?? 1;
-    const minRequired = timesPerDay > 1 && values.completionType === 'minimum' && values.minRequired
-      ? Math.min(values.minRequired, timesPerDay)
+    if (!habit) return;
+    const isEvent = habit.habitType === 'event';
+    const times = values.timesPerDay ?? 1;
+    const min = times > 1 && values.completionType === 'minimum' && values.minRequired
+      ? Math.min(values.minRequired, times)
       : undefined;
-    const frequencyConfig = timesPerDay > 1
-      ? { type: 'custom_daily', timesPerDay, ...(minRequired ? { minRequired } : {}) }
+    const frequencyConfig = times > 1
+      ? { type: 'custom_daily', timesPerDay: times, ...(min ? { minRequired: min } : {}) }
       : { type: 'daily' };
 
     try {
       const validCustomFields = customFields.filter(f => f.name.trim().length > 0);
-      const habit = await createHabit.mutateAsync({
-        title:           values.title.trim(),
-        description:     values.description,
-        categoryId:      values.categoryId || undefined,
-        icon:            values.icon || undefined,
-        color:           values.color || undefined,
-        habitType:       values.habitType,
+      await updateHabit.mutateAsync({
+        title:        values.title.trim(),
+        description:  values.description,
+        categoryId:   values.categoryId || undefined,
+        icon:         values.icon || undefined,
+        color:        values.color || undefined,
         ...(isEvent ? {} : { frequencyConfig }),
-        customFields:    validCustomFields.length > 0 ? validCustomFields : undefined,
+        customFields: validCustomFields,
       });
-
-      // Event-based habits: optionally seed the first occurrence so "last done" isn't
-      // blank right after creating a habit for something already done before.
-      if (isEvent && values.lastDoneOn) {
-        await logHabit.mutateAsync({ id: habit.id, payload: { date: values.lastDoneOn, status: 'completed' } });
-      }
-
-      reset();
-      setCustomFields([]);
-      setGalleryOpen(false);
       onClose();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Failed to create habit';
-      addToast({ title: 'Could not create habit', description: msg, variant: 'destructive', duration: 4000 });
+      const msg = err instanceof Error ? err.message : 'Failed to update habit';
+      addToast({ title: 'Could not update habit', description: msg, variant: 'destructive', duration: 4000 });
     }
   }
 
   const watchedIcon  = watch('icon');
   const watchedColor = watch('color');
   const watchedTimes = watch('timesPerDay') ?? 1;
-  const watchedType  = watch('habitType') ?? 'regular';
   const watchedCompletionType = watch('completionType') ?? 'all';
   const watchedMinRequired    = watch('minRequired');
 
+  if (!habit) return null;
+
   return (
-    <>
-    <Sheet open={open} onOpenChange={(o) => !o && onClose()}>
+    <Sheet key={habit.id} open={Boolean(habit)} onOpenChange={(o) => !o && onClose()}>
       <SheetContent side="right" className="w-full sm:max-w-md gap-0 p-0 flex flex-col">
         <SheetHeader className="px-5 pt-safe-or-5 pb-4 border-b border-border shrink-0">
-          <SheetTitle>New Habit</SheetTitle>
-          <SheetDescription>Build a new routine. Start small.</SheetDescription>
+          <SheetTitle>Edit Habit</SheetTitle>
+          <SheetDescription>Update the details for &ldquo;{habit.title}&rdquo;.</SheetDescription>
         </SheetHeader>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
           <div className="flex-1 overflow-y-auto p-5 space-y-5">
             {/* Name */}
             <div className="space-y-1.5">
-              <Label htmlFor="habit-title">
+              <Label htmlFor="edit-habit-title">
                 Habit name <span className="text-destructive" aria-hidden>*</span>
               </Label>
               <Input
-                id="habit-title"
+                id="edit-habit-title"
                 placeholder="e.g. Morning Run"
                 maxLength={100}
                 aria-required="true"
                 aria-invalid={!!errors.title}
-                aria-describedby={errors.title ? 'habit-title-error' : undefined}
+                aria-describedby={errors.title ? 'edit-habit-title-error' : undefined}
                 {...register('title')}
               />
               {errors.title && (
-                <p id="habit-title-error" className="text-xs text-destructive" role="alert">
+                <p id="edit-habit-title-error" className="text-xs text-destructive" role="alert">
                   {errors.title.message}
                 </p>
               )}
@@ -128,54 +139,30 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
 
             {/* Description */}
             <div className="space-y-1.5">
-              <Label htmlFor="habit-desc">Description</Label>
+              <Label htmlFor="edit-habit-desc">Description</Label>
               <Textarea
-                id="habit-desc"
+                id="edit-habit-desc"
                 placeholder="Why does this habit matter to you?"
                 rows={2}
                 {...register('description')}
               />
             </div>
 
-            {/* Habit type */}
-            <div className="space-y-1.5">
-              <Label>Habit type</Label>
-              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Choose a habit type">
-                {HABIT_TYPES.map((t) => (
-                  <button
-                    key={t.key}
-                    type="button"
-                    aria-pressed={watchedType === t.key}
-                    onClick={() => setValue('habitType', t.key)}
-                    className={cn(
-                      'text-left px-3 py-2.5 rounded-xl border transition-all',
-                      watchedType === t.key
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border hover:border-primary/40',
-                    )}
-                  >
-                    <p className="text-sm font-medium">{t.label}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{t.description}</p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Times per day — regular habits only, event-based habits have no schedule */}
-            {watchedType === 'regular' && (
+            {habit.habitType === 'regular' && (
               <div className="space-y-1.5">
-                <Label htmlFor="habit-times">Times per day</Label>
+                <Label htmlFor="edit-habit-times">Times per day</Label>
                 <div className="flex items-center gap-3">
                   <Input
-                    id="habit-times"
+                    id="edit-habit-times"
                     type="number"
                     min={1}
                     max={20}
                     className="w-24"
-                    aria-describedby="habit-times-hint"
+                    aria-describedby="edit-habit-times-hint"
                     {...register('timesPerDay')}
                   />
-                  <p id="habit-times-hint" className="text-xs text-muted-foreground flex-1">
+                  <p id="edit-habit-times-hint" className="text-xs text-muted-foreground flex-1">
                     {Number(watchedTimes) > 1
                       ? `Card shows ${watchedTimes}× counter`
                       : 'Default — one completion per day'}
@@ -185,7 +172,7 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
             )}
 
             {/* Completion type — only meaningful once there's more than one completion a day */}
-            {watchedType === 'regular' && Number(watchedTimes) > 1 && (
+            {habit.habitType === 'regular' && Number(watchedTimes) > 1 && (
               <div className="space-y-1.5">
                 <Label>Completion type</Label>
                 <div className="grid grid-cols-2 gap-2" role="group" aria-label="Choose completion type">
@@ -222,35 +209,19 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
                 {watchedCompletionType === 'minimum' && (
                   <div className="flex items-center gap-3 pt-1">
                     <Input
-                      id="habit-min-required"
+                      id="edit-habit-min-required"
                       type="number"
                       min={1}
                       max={Number(watchedTimes)}
                       className="w-24"
-                      aria-describedby="habit-min-required-hint"
+                      aria-describedby="edit-habit-min-required-hint"
                       {...register('minRequired')}
                     />
-                    <p id="habit-min-required-hint" className="text-xs text-muted-foreground flex-1">
+                    <p id="edit-habit-min-required-hint" className="text-xs text-muted-foreground flex-1">
                       Counts as done after {watchedMinRequired || 1} of {watchedTimes} — the rest log as bonus.
                     </p>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Last done on — event-based habits only, optional */}
-            {watchedType === 'event' && (
-              <div className="space-y-1.5">
-                <Label htmlFor="habit-last-done">Last done on (optional)</Label>
-                <Input
-                  id="habit-last-done"
-                  type="date"
-                  max={new Date().toISOString().slice(0, 10)}
-                  {...register('lastDoneOn')}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Already done this before? Log the most recent one now.
-                </p>
               </div>
             )}
 
@@ -310,9 +281,9 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
             {/* Category */}
             {categories.length > 0 && (
               <div className="space-y-1.5">
-                <Label htmlFor="habit-category">Category</Label>
-                <Select onValueChange={(v) => setValue('categoryId', v)}>
-                  <SelectTrigger id="habit-category">
+                <Label htmlFor="edit-habit-category">Category</Label>
+                <Select defaultValue={habit.categoryId ?? undefined} onValueChange={(v) => setValue('categoryId', v)}>
+                  <SelectTrigger id="edit-habit-category">
                     <SelectValue placeholder="Select a category…" />
                   </SelectTrigger>
                   <SelectContent>
@@ -329,23 +300,11 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
 
             {/* Custom Log Fields */}
             <div className="space-y-2 pt-2 border-t border-border">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <Label className="text-sm font-semibold">Custom Log Fields</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Optional fields that appear each time you log this habit.
-                  </p>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 gap-1.5 text-xs h-8"
-                  onClick={() => setGalleryOpen(true)}
-                >
-                  <Sparkles className="h-3 w-3" aria-hidden />
-                  Templates
-                </Button>
+              <div>
+                <Label className="text-sm font-semibold">Custom Log Fields</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Optional fields that appear each time you log this habit.
+                </p>
               </div>
               <CustomFieldsBuilder value={customFields} onChange={setCustomFields} />
             </div>
@@ -356,20 +315,13 @@ export function CreateHabitSheet({ open, onClose }: CreateHabitSheetProps) {
               <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1" loading={createHabit.isPending}>
-                Create habit
+              <Button type="submit" className="flex-1" loading={updateHabit.isPending}>
+                Save changes
               </Button>
             </div>
           </div>
         </form>
       </SheetContent>
     </Sheet>
-
-    <TemplateGallery
-      open={galleryOpen}
-      onClose={() => setGalleryOpen(false)}
-      onSelect={applyTemplate}
-    />
-    </>
   );
 }

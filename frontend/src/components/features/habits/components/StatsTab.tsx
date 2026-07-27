@@ -15,16 +15,17 @@ const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
 interface StatsTabProps {
   habitId:       string;
-  customFields?: CustomFieldDef[];
+  customFields?: CustomFieldDef[] | null;
 }
 
 // ── Heatmap ───────────────────────────────────────────────────────────────────
 
-type HeatStatus = 'completed' | 'failed' | 'skipped' | null;
+type HeatStatus = 'completed' | 'failed' | 'skipped' | 'partial' | null;
 
 function heatColor(status: HeatStatus): string {
   switch (status) {
     case 'completed': return 'bg-violet-500';
+    case 'partial':   return 'bg-sky-400/70';
     case 'failed':    return 'bg-red-400/70';
     case 'skipped':   return 'bg-amber-400/60';
     default:          return 'bg-muted';
@@ -103,6 +104,7 @@ function HeatmapSection({ heatGrid, title, showSkipFail }: {
         <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-violet-500 inline-block" /> {showSkipFail ? 'Done' : 'Logged'}</span>
         {showSkipFail && (
           <>
+            <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-sky-400/70 inline-block" /> Partial</span>
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-amber-400/60 inline-block" /> Skipped</span>
             <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-red-400/70 inline-block" /> Failed</span>
           </>
@@ -282,6 +284,22 @@ function RegularStatsBody({ data, heatGrid, fieldAnalytics }: {
           </div>
         ))}
       </div>
+
+      {/* ── Required vs Actual — only meaningful for minimum-required multi-completion habits ── */}
+      {data.timesPerDay > 1 && data.minRequired < data.timesPerDay && (
+        <div className="grid grid-cols-2 gap-2.5">
+          <div className="rounded-xl border border-border bg-card p-3.5 space-y-1">
+            <p className="text-[11px] text-muted-foreground">Required rate</p>
+            <p className="text-2xl font-black tabular-nums leading-none text-emerald-500">{data.successRate}%</p>
+            <p className="text-[10px] text-muted-foreground">{data.minRequired} of {data.timesPerDay} needed</p>
+          </div>
+          <div className="rounded-xl border border-border bg-card p-3.5 space-y-1">
+            <p className="text-[11px] text-muted-foreground">Actual completions</p>
+            <p className="text-2xl font-black tabular-nums leading-none text-primary">{data.actualCompletionsThisMonth}</p>
+            <p className="text-[10px] text-muted-foreground">this month, including bonus</p>
+          </div>
+        </div>
+      )}
 
       <HeatmapSection heatGrid={heatGrid} title="90-Day Activity" showSkipFail />
 

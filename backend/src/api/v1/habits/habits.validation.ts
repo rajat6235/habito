@@ -25,10 +25,22 @@ const customFieldDefSchema = z.object({
   }).optional(),
 });
 
+const customDailyConfigSchema = z.object({
+  type:        z.literal('custom_daily'),
+  timesPerDay: z.number().int().min(1).max(20),
+  // Habit counts as done for the day once this many completions are logged;
+  // the rest still get logged as bonus. Defaults to timesPerDay (all required)
+  // when omitted — existing habits keep behaving exactly as they do today.
+  minRequired: z.number().int().min(1).optional(),
+}).refine((data) => data.minRequired == null || data.minRequired <= data.timesPerDay, {
+  message: 'Minimum required cannot exceed times per day',
+  path:    ['minRequired'],
+});
+
 const frequencyConfigSchema = z.union([
   z.object({ type: z.literal('daily') }),
   z.object({ type: z.literal('twice_daily') }),
-  z.object({ type: z.literal('custom_daily'), timesPerDay: z.number().int().min(1).max(20) }),
+  customDailyConfigSchema,
   z.object({ type: z.literal('weekly'), days: z.array(z.number().int().min(0).max(6)).min(1) }),
   z.object({ type: z.literal('monthly'), dates: z.array(z.number().int().min(1).max(31)).min(1) }),
   z.object({ type: z.literal('every_x_hours'), intervalHours: z.number().int().min(1).max(23) }),
@@ -82,7 +94,7 @@ export const logHabitSchema = z.object({
 });
 
 export const updateLogSchema = z.object({
-  status:            z.enum(['completed', 'skipped', 'failed']).optional(),
+  status:            z.enum(['completed', 'skipped', 'failed', 'partial']).optional(),
   value:             z.number().positive().nullable().optional(),
   note:              z.string().max(500).nullable().optional(),
   skipReason:        z.string().max(200).nullable().optional(),

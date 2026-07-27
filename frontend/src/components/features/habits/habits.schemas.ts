@@ -18,6 +18,17 @@ export const createHabitSchema = z.object({
     },
     z.number().int().min(1).max(20),
   ),
+  // Only meaningful when timesPerDay > 1 — 'all' means every completion is required
+  // (today's behaviour), 'minimum' lets the habit count as done before the max is hit.
+  completionType: z.enum(['all', 'minimum']).default('all'),
+  minRequired: z.preprocess(
+    (v) => {
+      if (v === '' || v === undefined || v === null) return undefined;
+      const n = Number(v);
+      return Number.isNaN(n) ? undefined : n;
+    },
+    z.number().int().min(1).max(20).optional(),
+  ),
   // Event-based habits only — optionally seed the first log so "last done" isn't blank
   // immediately after creating a habit for something the user has obviously done before.
   lastDoneOn: z.string().optional(),
@@ -30,7 +41,7 @@ export const logHabitSchema = z.object({
 });
 
 export const editLogSchema = z.object({
-  status:            z.enum(['completed', 'skipped', 'failed']).optional(),
+  status:            z.enum(['completed', 'skipped', 'failed', 'partial']).optional(),
   note:              z.string().max(500).optional().nullable(),
   value:             z.coerce.number().positive().optional().nullable(),
   customFieldValues: z.record(z.string(), z.unknown()).optional().nullable(),

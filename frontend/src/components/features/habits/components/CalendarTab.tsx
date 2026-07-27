@@ -96,6 +96,7 @@ export function CalendarTab({ habitId, startDate }: CalendarTabProps) {
                   'aspect-square rounded-md flex items-center justify-center text-xs font-medium',
                   isToday && 'ring-2 ring-primary ring-offset-1',
                   log?.status === 'completed' && 'bg-emerald-500 text-white',
+                  log?.status === 'partial'   && 'bg-sky-400 text-white',
                   log?.status === 'skipped'   && 'bg-amber-400 text-white',
                   log?.status === 'failed'    && 'bg-rose-400 text-white',
                   isFuture && !log && 'text-muted-foreground/30',
@@ -112,6 +113,7 @@ export function CalendarTab({ habitId, startDate }: CalendarTabProps) {
       <div className="flex items-center gap-4 text-xs text-muted-foreground pt-1" aria-label="Legend">
         {[
           ['bg-emerald-500', 'Completed'],
+          ['bg-sky-400',     'Partial'],
           ['bg-amber-400',   'Skipped'],
           ['bg-rose-400',    'Failed'],
         ].map(([c, l]) => (

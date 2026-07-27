@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { Plus, Sparkles } from 'lucide-react';
 
-import { useTodayHabits, useLogHabit, useHabits } from '@/hooks/api/useHabits';
+import { useTodayHabits, useLogHabit, useHabits, useArchiveHabit } from '@/hooks/api/useHabits';
 import { useAuth } from '@/hooks/useAuth';
 import { HabitCard } from '@/components/shared/HabitCard';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { LogModal } from './components/LogModal';
 import { HabitHistorySheet } from './components/HabitHistorySheet';
 import { CreateHabitSheet } from './components/CreateHabitSheet';
+import { EditHabitSheet } from './components/EditHabitSheet';
 import { DeleteHabitConfirm } from './components/DeleteHabitConfirm';
 import { ProgressRing } from './components/ProgressRing';
 import { EventHabitCard } from './components/EventHabitCard';
@@ -54,10 +55,12 @@ export function HabitsView() {
   const [createOpen,   setCreateOpen]   = useState(false);
   const [logHabit,     setLogHabit]     = useState<Habit | null>(null);
   const [historyHabit, setHistoryHabit] = useState<Habit | null>(null);
+  const [editHabit,    setEditHabit]    = useState<Habit | null>(null);
   const [deleteHabit,  setDeleteHabit]  = useState<Habit | null>(null);
 
   const { data: todayHabits = [], isLoading, isError } = useTodayHabits(today);
-  const logMutation = useLogHabit();
+  const logMutation     = useLogHabit();
+  const archiveMutation = useArchiveHabit();
 
   const { data: eventHabitPages } = useHabits({ habitType: 'event' });
   const eventHabits = useMemo(
@@ -259,6 +262,8 @@ export function HabitsView() {
                     onCheck={handleCheck}
                     onLog={handleLog}
                     onHistory={(h) => setHistoryHabit(h)}
+                    onEdit={(h) => setEditHabit(h)}
+                    onArchive={(h) => archiveMutation.mutate(h.id)}
                     onDelete={(h) => setDeleteHabit(h)}
                     loading={
                       logMutation.isPending &&
@@ -284,6 +289,8 @@ export function HabitsView() {
                   habit={habit}
                   onLogNow={handleLogNow}
                   onHistory={(h) => setHistoryHabit(h)}
+                  onEdit={(h) => setEditHabit(h)}
+                  onArchive={(h) => archiveMutation.mutate(h.id)}
                   onDelete={(h) => setDeleteHabit(h)}
                   loading={
                     logMutation.isPending &&
@@ -316,6 +323,7 @@ export function HabitsView() {
       <CreateHabitSheet open={createOpen} onClose={() => setCreateOpen(false)} />
       <LogModal habit={logHabit} onClose={() => setLogHabit(null)} dateStr={dateStr} />
       <HabitHistorySheet habit={historyHabit} onClose={() => setHistoryHabit(null)} />
+      <EditHabitSheet habit={editHabit} onClose={() => setEditHabit(null)} />
       <DeleteHabitConfirm habit={deleteHabit} onClose={() => setDeleteHabit(null)} />
     </div>
   );

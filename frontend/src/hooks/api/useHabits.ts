@@ -89,6 +89,19 @@ export function useDeleteHabit() {
   });
 }
 
+export function useArchiveHabit() {
+  const qc      = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: (id: string) => habitsApi.archive(id),
+    onSuccess:  (result) => {
+      qc.invalidateQueries({ queryKey: ['habits'] });
+      toast({ title: result.archived ? 'Habit archived' : 'Habit unarchived', variant: 'default' });
+    },
+  });
+}
+
 export function useLogHabit() {
   const qc         = useQueryClient();
   const { toast }  = useToast();

@@ -15,7 +15,7 @@ import type { CustomFieldDef } from '@shared/types/customFields';
 
 interface HistoryTabProps {
   habitId:       string;
-  customFields?: CustomFieldDef[];
+  customFields?: CustomFieldDef[] | null;
   onEditLog:     (log: HabitLog) => void;
   onDeleteLog:   (log: HabitLog) => void;
 }

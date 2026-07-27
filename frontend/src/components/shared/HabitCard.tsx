@@ -35,14 +35,25 @@ function getCompletionCount(habit: Habit): number {
   return ((habit as HabitWithTodayLog).todayLog?.completionCount) ?? 0;
 }
 
+// Completions needed for the day to count as done — defaults to timesPerDay
+// (every completion required) unless the habit sets a lower threshold.
+function getMinRequired(habit: Habit): number {
+  const cfg = (habit as HabitWithTodayLog).frequencyConfig as Record<string, unknown>;
+  const timesPerDay = getTimesPerDay(habit);
+  const minRequired = cfg?.['minRequired'];
+  return typeof minRequired === 'number' && minRequired >= 1 ? Math.min(minRequired, timesPerDay) : timesPerDay;
+}
+
 export function HabitCard({
   habit, completed = false, onCheck, onLog, onHistory, onEdit, onArchive, onDelete, loading, className,
 }: HabitCardProps) {
   const accentColor = habit.color ?? 'hsl(var(--primary))';
   const timesPerDay = getTimesPerDay(habit);
+  const minRequired = getMinRequired(habit);
   const countToday  = getCompletionCount(habit);
   const isMultiple  = timesPerDay > 1;
-  const isFullyDone = isMultiple ? countToday >= timesPerDay : completed;
+  const isFullyDone = isMultiple ? countToday >= minRequired : completed;
+  const hasBonusLeft = isMultiple && isFullyDone && countToday < timesPerDay;
 
   const hasCustomFields = Array.isArray(habit.customFields) && (habit.customFields as unknown[]).length > 0;
 
@@ -96,8 +107,12 @@ export function HabitCard({
         {isMultiple ? (
           <button
             onClick={handleCircleClick}
-            disabled={loading || isFullyDone}
-            aria-label={`Log ${habit.title} (${countToday}/${timesPerDay})`}
+            disabled={loading || countToday >= timesPerDay}
+            aria-label={
+              hasBonusLeft
+                ? `${habit.title} completed — log a bonus completion (${countToday}/${timesPerDay})`
+                : `Log ${habit.title} (${countToday}/${minRequired} required)`
+            }
             aria-pressed={isFullyDone}
             className={cn(
               'flex flex-col items-center justify-center h-10 w-10 rounded-full border-2',
@@ -107,6 +122,7 @@ export function HabitCard({
                 ? 'border-emerald-500 bg-emerald-500 text-white'
                 : 'border-border/80 hover:scale-105 hover:border-primary/60 hover:bg-primary/5',
               loading && 'opacity-40 cursor-wait',
+              hasBonusLeft && !loading && 'cursor-pointer hover:scale-105',
             )}
           >
             {isFullyDone ? (
@@ -115,7 +131,7 @@ export function HabitCard({
               </motion.div>
             ) : (
               <span className="tabular-nums" style={{ color: accentColor }}>
-                {countToday}/{timesPerDay}
+                {countToday}/{minRequired}
               </span>
             )}
           </button>
@@ -184,7 +200,12 @@ export function HabitCard({
 
         {isMultiple && !isFullyDone && countToday > 0 && (
           <p className="text-[11px] font-medium mt-0.5" style={{ color: accentColor }}>
-            {timesPerDay - countToday} more to go
+            {minRequired - countToday} more to go
+          </p>
+        )}
+        {hasBonusLeft && (
+          <p className="text-[11px] font-medium mt-0.5 text-emerald-600 dark:text-emerald-400">
+            Completed · +{timesPerDay - countToday} optional remaining
           </p>
         )}
       </div>
@@ -205,8 +226,8 @@ export function HabitCard({
           </div>
         )}
 
-        {/* Multi-completion log button */}
-        {isMultiple && !isFullyDone && onLog && (
+        {/* Multi-completion log button — stays available for bonus logging past the required minimum */}
+        {isMultiple && countToday < timesPerDay && onLog && (
           <button
             onClick={(e) => { e.stopPropagation(); onLog(habit); }}
             disabled={loading}
@@ -235,9 +256,8 @@ export function HabitCard({
               <button
                 onClick={(e) => e.stopPropagation()}
                 className={cn(
-                  'p-1.5 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-muted',
-                  'transition-all opacity-0 group-hover:opacity-100 focus-visible:opacity-100',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'p-1.5 rounded-lg text-muted-foreground/50 hover:text-foreground hover:bg-muted',
+                  'transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
                 )}
                 aria-label="More options"
               >

@@ -14,13 +14,14 @@ import type { CustomFieldDef } from '@shared/types/customFields';
 
 interface TimelineTabProps {
   habitId:       string;
-  customFields?: CustomFieldDef[];
+  customFields?: CustomFieldDef[] | null;
   onEditLog:     (log: HabitLog) => void;
   onDeleteLog:   (log: HabitLog) => void;
 }
 
 const STATUS_ICON: Record<string, string> = {
   completed: '✅',
+  partial:   '◐',
   skipped:   '⏭️',
   failed:    '❌',
 };

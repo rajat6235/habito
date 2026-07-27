@@ -122,19 +122,24 @@ export interface Habit {
   successRate:      number;
   lastCompletedDate: string | null;
   createdAt:        string;
-  customFields?:    CustomFieldDef[];
+  // Prisma column is nullable JSON — the API returns `null`, not `undefined`, when unset.
+  customFields:     CustomFieldDef[] | null;
 }
 
 export interface HabitWithTodayLog extends Habit {
   todayLog:    HabitLog | null;
   timesPerDay: number;
+  // Completions needed for the day to count as done — defaults to timesPerDay
+  // (every completion required) unless the habit sets a lower threshold.
+  minRequired: number;
 }
 
 export interface HabitLog {
   id:              string;
   habitId:         string;
   logDate:         string;
-  status:          'completed' | 'skipped' | 'failed';
+  // 'partial' — logged, but hasn't reached minRequired yet (multi-completion habits only).
+  status:          'completed' | 'skipped' | 'failed' | 'partial';
   value:           number | null;
   note:            string | null;
   skipReason:      string | null;
@@ -151,6 +156,11 @@ export interface RegularHabitStats {
   longestStreak:    number;
   totalCompletions: number;
   successRate:      number;
+  timesPerDay:      number;
+  minRequired:      number;
+  // Every individual completion logged this month, regardless of whether that
+  // day cleared minRequired — "required rate" vs. "actual applications".
+  actualCompletionsThisMonth: number;
   last30Days:       number;
   last7Days:        number;
   heatmap:          HeatmapDay[];
@@ -178,7 +188,7 @@ export type HabitStats = RegularHabitStats | EventHabitStats;
 
 export interface HeatmapDay {
   date:               string;
-  status:             'completed' | 'skipped' | 'failed' | null;
+  status:             'completed' | 'skipped' | 'failed' | 'partial' | null;
   value:              number | null;
   customFieldValues?: Record<string, unknown>;
 }

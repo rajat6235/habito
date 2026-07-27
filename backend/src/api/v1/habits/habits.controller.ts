@@ -25,6 +25,14 @@ function getTimesPerDay(frequencyConfig: Record<string, unknown>): number {
   return 1;
 }
 
+// Defaults to timesPerDay (every completion required) when unset — the habit
+// behaves exactly as it did before this setting existed.
+function getMinRequired(frequencyConfig: Record<string, unknown>): number {
+  const minRequired = frequencyConfig['minRequired'];
+  const timesPerDay = getTimesPerDay(frequencyConfig);
+  return typeof minRequired === 'number' && minRequired >= 1 ? Math.min(minRequired, timesPerDay) : timesPerDay;
+}
+
 // Event-based habits have no streak concept — persist only totalCompletions/lastCompletedDate
 // from a source-of-truth recalculation; regular habits also persist the streak fields.
 function streakUpdateData(habitType: HabitType, streak: StreakResult) {
@@ -235,7 +243,9 @@ export async function logHabit(req: Request, res: Response, next: NextFunction):
 
     // Event-based habits (e.g. "haircut") aren't logged multiple times a day — one
     // occurrence per date, same as the unique [habitId, logDate] constraint already enforces.
-    const timesPerDay = habit.habitType === 'event' ? 1 : getTimesPerDay(habit.frequencyConfig as Record<string, unknown>);
+    const frequencyConfig = habit.frequencyConfig as Record<string, unknown>;
+    const timesPerDay = habit.habitType === 'event' ? 1 : getTimesPerDay(frequencyConfig);
+    const minRequired = habit.habitType === 'event' ? 1 : getMinRequired(frequencyConfig);
 
     // Atomic read-modify-write inside a transaction to prevent race conditions
     const result = await prisma.$transaction(async (tx) => {
@@ -252,8 +262,11 @@ export async function logHabit(req: Request, res: Response, next: NextFunction):
       }
 
       const newCount       = body.status === 'completed' ? currentCount + 1 : currentCount;
-      const resolvedStatus = (body.status === 'completed' && newCount >= timesPerDay
-        ? 'completed'
+      // A log only becomes 'completed' once it reaches minRequired — below that,
+      // it's 'partial' (logged, still counts toward the running count, but doesn't
+      // count toward streaks/stats yet since those all key off status === 'completed').
+      const resolvedStatus = (body.status === 'completed'
+        ? (newCount >= minRequired ? 'completed' : 'partial')
         : body.status) as HabitLogStatus;
 
       const upserted = await tx.habitLog.upsert({
@@ -331,7 +344,7 @@ export async function logHabit(req: Request, res: Response, next: NextFunction):
       return { log: upserted, completionCount: newCount };
     });
 
-    sendCreated(res, { ...result.log, timesPerDay, completionCount: result.completionCount });
+    sendCreated(res, { ...result.log, timesPerDay, minRequired, completionCount: result.completionCount });
   } catch (err) {
     next(err);
   }
@@ -469,6 +482,15 @@ export async function getHabitStats(req: Request, res: Response, next: NextFunct
     const failedCount    = allLogs.filter(l => l.status === 'failed').length;
     const attemptedDays  = completedCount + failedCount;
 
+    // "Required" completion rate is completedCount/attemptedDays above (already gated on
+    // minRequired via status). "Actual" is every individual completion logged this month,
+    // regardless of whether that day cleared the requirement — e.g. a 2x/day serum habit
+    // with minRequired 1 still counts both applications toward the actual total.
+    const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const actualCompletionsThisMonth = allLogs
+      .filter(l => l.logDate >= startOfThisMonth)
+      .reduce((sum, l) => sum + l.completionCount, 0);
+
     const heatmap = allLogs.map(l => ({
       date:              l.logDate.toISOString().split('T')[0],
       status:            l.status,
@@ -557,6 +579,9 @@ export async function getHabitStats(req: Request, res: Response, next: NextFunct
       longestStreak:      liveStreak.longestStreak,
       totalCompletions:   liveStreak.totalCompletions,
       successRate:        attemptedDays > 0 ? Math.round((completedCount / attemptedDays) * 100) : 0,
+      timesPerDay:        getTimesPerDay(habit.frequencyConfig as Record<string, unknown>),
+      minRequired:        getMinRequired(habit.frequencyConfig as Record<string, unknown>),
+      actualCompletionsThisMonth,
       last30Days:         last30Logs.length,
       last7Days:          last7Logs.length,
       heatmap,
@@ -574,10 +599,11 @@ export async function getTodayHabits(req: Request, res: Response, next: NextFunc
 
     const habits = await habitRepo.getTodayHabits(req.user!.id, today);
 
-    // Attach timesPerDay to each habit
+    // Attach timesPerDay / minRequired to each habit
     const enriched = habits.map(h => ({
       ...h,
       timesPerDay: getTimesPerDay(h.frequencyConfig as Record<string, unknown>),
+      minRequired: getMinRequired(h.frequencyConfig as Record<string, unknown>),
       todayLog: (h as { logs?: unknown[] }).logs?.[0] ?? null,
     }));
 
